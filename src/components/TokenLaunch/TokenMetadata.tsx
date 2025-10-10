@@ -167,57 +167,379 @@ const TokenMetadataForm: React.FC = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{maxWidth:760,margin:'0 auto',fontFamily:'sans-serif'}}>
-      <h3>Event Token Metadata</h3>
-      <div style={{display:'grid',gap:12}}>
-        <label>Fullname
-          <input value={fullname} onChange={e=>setFullname(e.target.value)} required />
-        </label>
-        <label>Ticker
-          <input value={ticker} onChange={e=>setTicker(e.target.value)} required />
-        </label>
-        <label>geoTag
-          <input value={geoTag} onChange={e=>setGeoTag(e.target.value)} required />
-        </label>
-        <label>weatherTag
-          <input value={weatherTag} onChange={e=>setWeatherTag(e.target.value)} required />
-        </label>
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      padding: '40px 20px',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center'
+    }}>
+      <form onSubmit={handleSubmit} style={{
+        maxWidth: 800,
+        width: '100%',
+        background: 'white',
+        borderRadius: '20px',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
+        padding: '40px',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+      }}>
+        <h2 style={{
+          fontSize: '32px',
+          fontWeight: '700',
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          marginBottom: '30px',
+          textAlign: 'center'
+        }}>Event Token Metadata</h2>
+        
+        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px'}}>
+          <div style={{gridColumn: 'span 1'}}>
+            <label style={{
+              display: 'block',
+              marginBottom: '8px',
+              fontSize: '14px',
+              fontWeight: '600',
+              color: '#4a5568'
+            }}>
+              Token Full Name
+            </label>
+            <input 
+              value={fullname} 
+              onChange={e=>setFullname(e.target.value)} 
+              required
+              placeholder="Enter token full name"
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                border: '2px solid #e2e8f0',
+                borderRadius: '10px',
+                fontSize: '16px',
+                transition: 'all 0.3s ease',
+                outline: 'none',
+                boxSizing: 'border-box'
+              }}
+              onFocus={(e) => e.target.style.borderColor = '#667eea'}
+              onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+            />
+          </div>
+          
+          <div style={{gridColumn: 'span 1'}}>
+            <label style={{
+              display: 'block',
+              marginBottom: '8px',
+              fontSize: '14px',
+              fontWeight: '600',
+              color: '#4a5568'
+            }}>
+              Token Ticker
+            </label>
+            <input 
+              value={ticker} 
+              onChange={e=>setTicker(e.target.value)} 
+              required
+              placeholder="Enter ticker symbol"
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                border: '2px solid #e2e8f0',
+                borderRadius: '10px',
+                fontSize: '16px',
+                transition: 'all 0.3s ease',
+                outline: 'none',
+                boxSizing: 'border-box'
+              }}
+              onFocus={(e) => e.target.style.borderColor = '#667eea'}
+              onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+            />
+          </div>
+          
+          <div style={{gridColumn: 'span 1'}}>
+            <label style={{
+              display: 'block',
+              marginBottom: '8px',
+              fontSize: '14px',
+              fontWeight: '600',
+              color: '#4a5568'
+            }}>
+              Geographic Location
+            </label>
+            <input 
+              value={geoTag} 
+              onChange={e=>setGeoTag(e.target.value)} 
+              required
+              placeholder="e.g., New York, USA"
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                border: '2px solid #e2e8f0',
+                borderRadius: '10px',
+                fontSize: '16px',
+                transition: 'all 0.3s ease',
+                outline: 'none',
+                boxSizing: 'border-box'
+              }}
+              onFocus={(e) => e.target.style.borderColor = '#667eea'}
+              onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+            />
+          </div>
+          
+          <div style={{gridColumn: 'span 1'}}>
+            <label style={{
+              display: 'block',
+              marginBottom: '8px',
+              fontSize: '14px',
+              fontWeight: '600',
+              color: '#4a5568'
+            }}>
+              Weather Condition
+            </label>
+            <input 
+              value={weatherTag} 
+              onChange={e=>setWeatherTag(e.target.value)} 
+              required
+              placeholder="e.g., Sunny, Rainy"
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                border: '2px solid #e2e8f0',
+                borderRadius: '10px',
+                fontSize: '16px',
+                transition: 'all 0.3s ease',
+                outline: 'none',
+                boxSizing: 'border-box'
+              }}
+              onFocus={(e) => e.target.style.borderColor = '#667eea'}
+              onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+            />
+          </div>
+        </div>
 
-        <fieldset style={{border:'1px solid #ccc',padding:10}}>
-          <legend>eventTypes (4)</legend>
-          {Array.from({length:4}).map((_,i)=>(
-            <div key={i}>
-              <select value={eventTypes[i]} onChange={e=>handleEventTypeChange(i,e.target.value)}>
+        <div style={{
+          marginTop: '24px',
+          padding: '20px',
+          background: 'linear-gradient(135deg, #f6f8fb 0%, #f0f4f8 100%)',
+          borderRadius: '12px',
+          border: '2px solid #e2e8f0'
+        }}>
+          <h3 style={{
+            fontSize: '16px',
+            fontWeight: '600',
+            color: '#4a5568',
+            marginBottom: '16px'
+          }}>Event Categories (Select 4)</h3>
+          <div style={{display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px'}}>
+            {Array.from({length:4}).map((_,i)=>(
+              <select 
+                key={i} 
+                value={eventTypes[i]} 
+                onChange={e=>handleEventTypeChange(i,e.target.value)}
+                style={{
+                  padding: '10px 12px',
+                  border: '2px solid #e2e8f0',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  background: 'white',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  outline: 'none'
+                }}
+                onFocus={(e) => e.target.style.borderColor = '#667eea'}
+                onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+              >
                 {EVENT_TYPE_OPTIONS.map(opt=> <option key={opt} value={opt}>{opt}</option>)}
               </select>
-            </div>
-          ))}
-        </fieldset>
+            ))}
+          </div>
+        </div>
 
-        <label>eventDescription
-          <textarea rows={3} value={eventDescription} onChange={e=>setEventDescription(e.target.value)} />
-        </label>
-        <label>supplementLink
-          <input value={supplementLink} onChange={e=>setSupplementLink(e.target.value)} />
-        </label>
-        <label>eventTime (UNIX 秒)
-          <input value={eventTime} readOnly />
-        </label>
-      </div>
+        <div style={{marginTop: '24px'}}>
+          <label style={{
+            display: 'block',
+            marginBottom: '8px',
+            fontSize: '14px',
+            fontWeight: '600',
+            color: '#4a5568'
+          }}>
+            Event Description
+          </label>
+          <textarea 
+            rows={4} 
+            value={eventDescription} 
+            onChange={e=>setEventDescription(e.target.value)}
+            placeholder="Provide a detailed description of the event..."
+            style={{
+              width: '100%',
+              padding: '12px 16px',
+              border: '2px solid #e2e8f0',
+              borderRadius: '10px',
+              fontSize: '16px',
+              resize: 'vertical',
+              transition: 'all 0.3s ease',
+              outline: 'none',
+              boxSizing: 'border-box',
+              fontFamily: 'inherit'
+            }}
+            onFocus={(e) => e.target.style.borderColor = '#667eea'}
+            onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+          />
+        </div>
+        
+        <div style={{marginTop: '20px'}}>
+          <label style={{
+            display: 'block',
+            marginBottom: '8px',
+            fontSize: '14px',
+            fontWeight: '600',
+            color: '#4a5568'
+          }}>
+            Supplement Link
+          </label>
+          <input 
+            value={supplementLink} 
+            onChange={e=>setSupplementLink(e.target.value)}
+            placeholder="https://example.com/details"
+            style={{
+              width: '100%',
+              padding: '12px 16px',
+              border: '2px solid #e2e8f0',
+              borderRadius: '10px',
+              fontSize: '16px',
+              transition: 'all 0.3s ease',
+              outline: 'none',
+              boxSizing: 'border-box'
+            }}
+            onFocus={(e) => e.target.style.borderColor = '#667eea'}
+            onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+          />
+        </div>
+        
+        <div style={{marginTop: '20px'}}>
+          <label style={{
+            display: 'block',
+            marginBottom: '8px',
+            fontSize: '14px',
+            fontWeight: '600',
+            color: '#4a5568'
+          }}>
+            Event Time
+          </label>
+          <input 
+            value={new Date(eventTime * 1000).toLocaleString()} 
+            readOnly
+            style={{
+              width: '100%',
+              padding: '12px 16px',
+              border: '2px solid #e2e8f0',
+              borderRadius: '10px',
+              fontSize: '16px',
+              background: '#f7fafc',
+              color: '#718096',
+              boxSizing: 'border-box'
+            }}
+          />
+        </div>
 
-      <div style={{marginTop:16}}>
-        <button type='submit' disabled={submitting}>{submitting ? '提交中...' : '提交后端'}</button>
-      </div>
+        <button 
+          type='submit' 
+          disabled={submitting}
+          style={{
+            marginTop: '32px',
+            width: '100%',
+            padding: '14px 24px',
+            background: submitting ? '#cbd5e0' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            border: 'none',
+            borderRadius: '10px',
+            fontSize: '16px',
+            fontWeight: '600',
+            cursor: submitting ? 'not-allowed' : 'pointer',
+            transition: 'all 0.3s ease',
+            boxShadow: submitting ? 'none' : '0 4px 15px rgba(102, 126, 234, 0.4)'
+          }}
+          onMouseEnter={(e) => !submitting && (e.currentTarget.style.transform = 'translateY(-2px)')}
+          onMouseLeave={(e) => !submitting && (e.currentTarget.style.transform = 'translateY(0)')}
+        >
+          {submitting ? 'Submitting...' : 'Submit to Blockchain'}
+        </button>
 
-      <div style={{marginTop:16,fontSize:13,lineHeight:1.5}}>
-        <div>状态: {status}</div>
-        {txHash && <div>TxHash: {txHash}</div>}
-        {backendData && <pre style={{background:'#f5f5f5',padding:8,overflow:'auto',maxHeight:200}}>{JSON.stringify(backendData,null,2)}</pre>}
-      </div>
+        {(status || txHash || backendData) && (
+          <div style={{
+            marginTop: '24px',
+            padding: '20px',
+            background: status.includes('失败') || status.includes('错误') ? '#fef2f2' : '#f0fdf4',
+            borderRadius: '10px',
+            border: `2px solid ${status.includes('失败') || status.includes('错误') ? '#fecaca' : '#bbf7d0'}`
+          }}>
+            {status && (
+              <div style={{
+                fontSize: '14px',
+                color: status.includes('失败') || status.includes('错误') ? '#dc2626' : '#16a34a',
+                fontWeight: '500'
+              }}>
+                Status: {status}
+              </div>
+            )}
+            {txHash && (
+              <div style={{
+                marginTop: '8px',
+                fontSize: '14px',
+                color: '#4a5568'
+              }}>
+                Transaction Hash: <span style={{
+                  fontFamily: 'monospace',
+                  background: '#e2e8f0',
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  wordBreak: 'break-all'
+                }}>{txHash}</span>
+              </div>
+            )}
+            {backendData && (
+              <pre style={{
+                marginTop: '12px',
+                background: 'white',
+                padding: '12px',
+                borderRadius: '8px',
+                overflow: 'auto',
+                maxHeight: '200px',
+                fontSize: '12px',
+                color: '#4a5568',
+                border: '1px solid #e2e8f0'
+              }}>
+                {JSON.stringify(backendData, null, 2)}
+              </pre>
+            )}
+          </div>
+        )}
 
-      <p style={{marginTop:20,fontSize:12,color:'#666'}}>说明: 本表单仅收集元数据并提交给后端。若后端返回 tx 结构则会唤起钱包签名并发送。若后端直接广播则前端仅展示 txHash。</p>
-      <p style={{marginTop:6,fontSize:12,color:'#666'}}>若合约需要 msg.sender = 用户地址，则必须在前端由用户签名发送（或使用 meta-tx / forwarder 设计）。单纯后端代发会变成后端地址作为 sender。</p>
-    </form>
+        <div style={{
+          marginTop: '24px',
+          padding: '16px',
+          background: '#f7fafc',
+          borderRadius: '10px',
+          borderLeft: '4px solid #667eea'
+        }}>
+          <p style={{
+            fontSize: '13px',
+            color: '#4a5568',
+            marginBottom: '8px',
+            lineHeight: '1.6'
+          }}>
+            <strong>Note:</strong> This form collects metadata and submits it to the backend. If the backend returns a transaction structure, it will trigger wallet signing and sending.
+          </p>
+          <p style={{
+            fontSize: '13px',
+            color: '#718096',
+            margin: 0,
+            lineHeight: '1.6'
+          }}>
+            For contracts requiring msg.sender = user address, transactions must be signed and sent from the frontend.
+          </p>
+        </div>
+      </form>
+    </div>
   );
 };
 
