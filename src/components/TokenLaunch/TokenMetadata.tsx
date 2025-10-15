@@ -7,19 +7,22 @@ interface BackendTxPayload {
   data: string;
   value?: string; // 十进制或 0x
   chainId?: number;
-  gasLimit?: string;
+  gasLimit?: string; // 可能后端用 gas 或 gasLimit
+  gas?: string;
+  gasPrice?: string;
   maxFeePerGas?: string;
   maxPriorityFeePerGas?: string;
+  nonce?: number;
+  from?: string;
 }
 
 interface BackendResponse {
-  success: boolean;
+  success?: boolean; // 兼容后端可能没有的字段
+  ok?: boolean;      // 后端当前返回的字段
   message?: string;
-  // 如果后端希望前端签名并广播，返回交易结构
   tx?: BackendTxPayload;
-  // 如果后端已广播，可回传 hash
   txHash?: string;
-  // 其它链上解析数据
+  error?: string;
   extra?: any;
 }
 
@@ -44,6 +47,9 @@ const TokenMetadataForm: React.FC = () => {
   const [eventTime, setEventTime] = useState<number>(Math.floor(Date.now()/1000));
   const [fullname, setFullname] = useState('');
   const [ticker, setTicker] = useState('');
+  // 新增: 钱包地址状态
+  const [walletAddress, setWalletAddress] = useState('');
+  const [connecting, setConnecting] = useState(false);
 
   // UI 状态
   const [status, setStatus] = useState('');
@@ -64,6 +70,7 @@ const TokenMetadataForm: React.FC = () => {
   };
 
   const validate = (): string | null => {
+    if (!walletAddress) return '请先连接钱包';
     if (!fullname.trim()) return 'Fullname 不能为空';
     if (!ticker.trim()) return 'Ticker 不能为空';
     if (!geoTag.trim()) return 'geoTag 不能为空';
@@ -73,6 +80,29 @@ const TokenMetadataForm: React.FC = () => {
     if (eventTypes.length !== 4) return '必须 4 个 eventTypes';
     if (new Set(eventTypes).size !== 4) return 'eventTypes 不可重复';
     return null;
+  };
+
+  // 连接钱包
+  const connectWallet = async () => {
+    if (!(window as any).ethereum) {
+      setStatus('未检测到钱包扩展');
+      return;
+    }
+    try {
+      setConnecting(true);
+      const provider = new ethers.BrowserProvider((window as any).ethereum);
+      const accounts = await provider.send('eth_requestAccounts', []);
+      if (accounts && accounts.length > 0) {
+        setWalletAddress(ethers.getAddress(accounts[0]));
+        setStatus('钱包已连接');
+      } else {
+        setStatus('未获取到账户');
+      }
+    } catch (e:any) {
+      setStatus('连接失败: ' + (e.message || e.toString()));
+    } finally {
+      setConnecting(false);
+    }
   };
 
   // 发送到后端：后端可两种模式
@@ -87,9 +117,10 @@ const TokenMetadataForm: React.FC = () => {
       supplementLink,
       eventTime,
       fullname,
-      ticker
+      ticker,
+      walletAddress // 新增字段
     };
-    const resp = await fetch('/api/event-token/create', {
+    const resp = await fetch('http://127.0.0.1:5000/tx_transfer/token_launch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -102,10 +133,40 @@ const TokenMetadataForm: React.FC = () => {
       throw new Error('未检测到钱包，无法签名');
     }
     const provider = new ethers.BrowserProvider((window as any).ethereum);
+
+    // 如果后端提供 chainId，尝试切换
+    if (tx.chainId) {
+      const chainHex = '0x' + tx.chainId.toString(16);
+      try {
+        await provider.send('wallet_switchEthereumChain', [{ chainId: chainHex }]);
+      } catch (err: any) {
+        if (err?.code === 4902) {
+          // 未添加到钱包，尝试添加，你可根据实际链信息调整
+            try {
+              await provider.send('wallet_addEthereumChain', [{
+                chainId: chainHex,
+                chainName: 'Local-' + tx.chainId,
+                nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+                rpcUrls: ['http://127.0.0.1:8545'], // 如需改成你的真实本地 RPC
+                blockExplorerUrls: []
+              }]);
+            } catch (addErr) {
+              console.warn('添加链失败', addErr);
+            }
+        } else {
+          console.warn('切换链失败', err);
+        }
+      }
+    }
+
     await provider.send('eth_requestAccounts', []);
     const signer = await provider.getSigner();
+    const currentAddr = (await signer.getAddress()).toLowerCase();
+    if (tx.from && tx.from.toLowerCase() !== currentAddr) {
+      throw new Error('后端返回 from 与当前钱包地址不一致');
+    }
 
-    // 规范化 value
+    // 标准化 value
     const valueHex = tx.value
       ? (tx.value.startsWith('0x') ? tx.value : ethers.toQuantity(BigInt(tx.value)))
       : '0x0';
@@ -115,17 +176,33 @@ const TokenMetadataForm: React.FC = () => {
       data: tx.data,
       value: valueHex
     };
-    if (tx.gasLimit) request.gas = tx.gasLimit;
-    if (tx.maxFeePerGas) request.maxFeePerGas = tx.maxFeePerGas;
-    if (tx.maxPriorityFeePerGas) request.maxPriorityFeePerGas = tx.maxPriorityFeePerGas;
 
-    // 直接使用 signer.sendTransaction 构造对象也可，但如果后端已经给了精确字段，用 provider.send 更直观
+    // gas / gasLimit 映射
+    if (tx.gas) request.gasLimit = tx.gas;
+    else if (tx.gasLimit) request.gasLimit = tx.gasLimit;
+
+    // 费用模型：如果提供 gasPrice (legacy) 则使用，不再设置 EIP-1559 字段
+    if (tx.gasPrice) {
+      request.gasPrice = tx.gasPrice;
+    } else {
+      if (tx.maxFeePerGas) request.maxFeePerGas = tx.maxFeePerGas;
+      if (tx.maxPriorityFeePerGas) request.maxPriorityFeePerGas = tx.maxPriorityFeePerGas;
+    }
+
+    if (typeof tx.nonce === 'number') request.nonce = tx.nonce; // 可省略让钱包自动估算
+    if (tx.chainId) request.chainId = tx.chainId; // ethers 自动校验
+
     const sent = await signer.sendTransaction(request);
     return sent.hash;
   };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    // 如果尚未连接钱包，则先连接，不继续提交
+    if (!walletAddress) {
+      await connectWallet();
+      return;
+    }
     setStatus('');
     setTxHash('');
     setBackendData(null);
@@ -138,8 +215,9 @@ const TokenMetadataForm: React.FC = () => {
     try {
       const res = await submitToBackend();
       setBackendData(res);
-      if (!res.success) {
-        setStatus('后端失败: ' + (res.message || 'unknown'));
+      const successFlag = (res.success === undefined ? res.ok : res.success) === true;
+      if (!successFlag) {
+        setStatus('后端失败: ' + (res.message || res.error || 'unknown'));
         return;
       }
       if (res.txHash) {
@@ -184,16 +262,18 @@ const TokenMetadataForm: React.FC = () => {
         padding: '40px',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
       }}>
-        <h2 style={{
-          fontSize: '32px',
-          fontWeight: '700',
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          marginBottom: '30px',
-          textAlign: 'center'
-        }}>Event Token Metadata</h2>
-        
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'20px'}}>
+          <h2 style={{
+            fontSize: '32px',
+            fontWeight: '700',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            margin: 0
+          }}>Event Token Metadata</h2>
+          {/* 原独立连接钱包按钮已移除，逻辑合并到底部主按钮 */}
+        </div>
+
         <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px'}}>
           <div style={{gridColumn: 'span 1'}}>
             <label style={{
@@ -443,25 +523,25 @@ const TokenMetadataForm: React.FC = () => {
 
         <button 
           type='submit' 
-          disabled={submitting}
+          disabled={submitting || connecting}
           style={{
             marginTop: '32px',
             width: '100%',
             padding: '14px 24px',
-            background: submitting ? '#cbd5e0' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            background: (submitting || connecting) ? '#cbd5e0' : (walletAddress ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'linear-gradient(135deg,#6366f1,#8b5cf6)'),
             color: 'white',
             border: 'none',
             borderRadius: '10px',
             fontSize: '16px',
             fontWeight: '600',
-            cursor: submitting ? 'not-allowed' : 'pointer',
+            cursor: (submitting || connecting) ? 'not-allowed' : 'pointer',
             transition: 'all 0.3s ease',
-            boxShadow: submitting ? 'none' : '0 4px 15px rgba(102, 126, 234, 0.4)'
+            boxShadow: (submitting || connecting) ? 'none' : '0 4px 15px rgba(102, 126, 234, 0.4)'
           }}
-          onMouseEnter={(e) => !submitting && (e.currentTarget.style.transform = 'translateY(-2px)')}
-          onMouseLeave={(e) => !submitting && (e.currentTarget.style.transform = 'translateY(0)')}
+          onMouseEnter={(e) => !(submitting || connecting) && (e.currentTarget.style.transform = 'translateY(-2px)')}
+          onMouseLeave={(e) => !(submitting || connecting) && (e.currentTarget.style.transform = 'translateY(0)')}
         >
-          {submitting ? 'Submitting...' : 'Submit to Blockchain'}
+          {submitting ? 'Submitting...' : (connecting ? '连接中...' : (walletAddress ? 'Submit to Blockchain' : 'Connect Wallet'))}
         </button>
 
         {(status || txHash || backendData) && (
