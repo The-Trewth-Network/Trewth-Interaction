@@ -161,6 +161,9 @@ const AgentSetting: React.FC = () => {
   // Prompt 状态
   const [userPrompt, setUserPrompt] = useState('');
   const [promptLocked, setPromptLocked] = useState(false);
+  // 新增: Auto Swap 限额 demo 状态
+  const [maxTradeAmount, setMaxTradeAmount] = useState<string>('1'); // 单笔最大
+  const [dailyMaxTradeAmount, setDailyMaxTradeAmount] = useState<string>('10'); // 单日最大
 
   // 限制选择最多 4 个标签
   const toggleTag = useCallback((tag: string) => {
@@ -220,6 +223,8 @@ const AgentSetting: React.FC = () => {
     setWsStatus('idle');
     setPromptLocked(false);
     setUserPrompt('');
+    setMaxTradeAmount('1');
+    setDailyMaxTradeAmount('10');
   };
 
   return (
@@ -328,6 +333,43 @@ const AgentSetting: React.FC = () => {
             }}/>
           </div>
           <span style={statusBadge(swapEnabled)}>{swapEnabled ? 'ENABLED' : 'DISABLED'}</span>
+        </div>
+        {/* 新增限额输入 */}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:16,marginTop:20}}>
+          <div>
+            <label style={{display:'block',fontSize:12,fontWeight:600,color:'#475569',marginBottom:6}}>Max Amount / Trade</label>
+            <input
+              type="number"
+              min={0}
+              step="0.0001"
+              disabled={!swapEnabled}
+              value={maxTradeAmount}
+              onChange={e=>setMaxTradeAmount(e.target.value)}
+              placeholder="e.g. 1"
+              style={{
+                width:'100%',padding:'10px 12px',border:'2px solid #e2e8f0',borderRadius:10,fontSize:14,outline:'none',
+                background: swapEnabled? '#fff':'#f1f5f9',color:'#334155'
+              }}
+            />
+            <div style={{marginTop:4,fontSize:11,color:'#64748b'}}>Single trade upper bound</div>
+          </div>
+          <div>
+            <label style={{display:'block',fontSize:12,fontWeight:600,color:'#475569',marginBottom:6}}>Daily Max Volume</label>
+            <input
+              type="number"
+              min={0}
+              step="0.0001"
+              disabled={!swapEnabled}
+              value={dailyMaxTradeAmount}
+              onChange={e=>setDailyMaxTradeAmount(e.target.value)}
+              placeholder="e.g. 10"
+              style={{
+                width:'100%',padding:'10px 12px',border:'2px solid #e2e8f0',borderRadius:10,fontSize:14,outline:'none',
+                background: swapEnabled? '#fff':'#f1f5f9',color:'#334155'
+              }}
+            />
+            <div style={{marginTop:4,fontSize:11,color:'#64748b'}}>Cumulative daily cap</div>
+          </div>
         </div>
       </div>
 
