@@ -1,13 +1,13 @@
-// TokenMetadata.tsx (Injected Wallet 模式)
+// TokenMetadata.tsx (修复版)
 import React, { useState, useEffect, FormEvent } from 'react';
 import { ethers } from 'ethers';
 
 interface BackendTxPayload {
   to: string;
   data: string;
-  value?: string; // 十进制或 0x
+  value?: string;
   chainId?: number;
-  gasLimit?: string; // 可能后端用 gas 或 gasLimit
+  gasLimit?: string;
   gas?: string;
   gasPrice?: string;
   maxFeePerGas?: string;
@@ -17,13 +17,12 @@ interface BackendTxPayload {
 }
 
 interface BackendResponse {
-  success?: boolean; // 兼容后端可能没有的字段
-  ok?: boolean;      // 后端当前返回的字段
-  message?: string;
+  ok?: boolean;
   tx?: BackendTxPayload;
   txHash?: string;
   error?: string;
-  extra?: any;
+  message?: string;
+  debug_info?: any;
 }
 
 const EVENT_TYPE_OPTIONS = [
@@ -47,7 +46,13 @@ const TokenMetadataForm: React.FC = () => {
   const [eventTime, setEventTime] = useState<number>(Math.floor(Date.now()/1000));
   const [fullname, setFullname] = useState('');
   const [ticker, setTicker] = useState('');
-  // 新增: 钱包地址状态
+
+  // 新增：合约参数
+  const [fee, setFee] = useState<number>(3000); // 默认 0.3%
+  const [tokensPerNativeE18, setTokensPerNativeE18] = useState<number>(10000); // 每 ETH 的代币数量
+  const [nativeLiquidityWei, setNativeLiquidityWei] = useState<string>('0.1'); // ETH 数量
+
+  // 钱包状态
   const [walletAddress, setWalletAddress] = useState('');
   const [connecting, setConnecting] = useState(false);
 
@@ -57,35 +62,57 @@ const TokenMetadataForm: React.FC = () => {
   const [txHash, setTxHash] = useState('');
   const [backendData, setBackendData] = useState<any>(null);
 
-  // 每 30 秒刷新一次当前时间戳（用户也可以手动修改逻辑，如需固定首次加载则移除）
-  useEffect(()=>{
-    const id = setInterval(()=> setEventTime(Math.floor(Date.now()/1000)), 30000);
-    return ()=> clearInterval(id);
-  },[]);
+  // 自动更新时间戳
+  useEffect(() => {
+    const id = setInterval(() => setEventTime(Math.floor(Date.now()/1000)), 30000);
+    return () => clearInterval(id);
+  }, []);
 
-  const handleEventTypeChange = (idx:number, val:string) => {
+  // 自动连接钱包（可选）
+  useEffect(() => {
+    checkWalletConnection();
+  }, []);
+
+  const checkWalletConnection = async () => {
+    if (!(window as any).ethereum) return;
+
+    try {
+      const provider = new ethers.BrowserProvider((window as any).ethereum);
+      const accounts = await provider.send('eth_accounts', []);
+      if (accounts && accounts.length > 0) {
+        setWalletAddress(ethers.getAddress(accounts[0]));
+      }
+    } catch (error) {
+      console.log('自动连接钱包失败:', error);
+    }
+  };
+
+  const handleEventTypeChange = (idx: number, val: string) => {
     const copy = [...eventTypes];
     copy[idx] = val;
     setEventTypes(copy);
   };
 
   const validate = (): string | null => {
-    if (!walletAddress) return '请先连接钱包';
-    if (!fullname.trim()) return 'Fullname 不能为空';
-    if (!ticker.trim()) return 'Ticker 不能为空';
-    if (!geoTag.trim()) return 'geoTag 不能为空';
-    if (!weatherTag.trim()) return 'weatherTag 不能为空';
-    if (!eventDescription.trim()) return 'eventDescription 不能为空';
-    if (!supplementLink.trim()) return 'supplementLink 不能为空';
-    if (eventTypes.length !== 4) return '必须 4 个 eventTypes';
-    if (new Set(eventTypes).size !== 4) return 'eventTypes 不可重复';
+    if (!walletAddress) return 'Please connect wallet first';
+    if (!fullname.trim()) return 'Full name required';
+    if (!ticker.trim()) return 'Ticker required';
+    if (!geoTag.trim()) return 'geoTag required';
+    if (!weatherTag.trim()) return 'weatherTag required';
+    if (!eventDescription.trim()) return 'Event description required';
+    if (!supplementLink.trim()) return 'Supplement link required';
+    if (eventTypes.length !== 4) return 'Exactly 4 eventTypes required';
+    if (new Set(eventTypes).size !== 4) return 'eventTypes must be unique';
+    if (fee < 0 || fee > 10000) return 'Fee must be between 0 and 10000';
+    if (tokensPerNativeE18 <= 0) return 'Tokens per ETH must be > 0';
+    if (!nativeLiquidityWei || parseFloat(nativeLiquidityWei) <= 0) return 'Liquidity amount must be > 0';
     return null;
   };
 
   // 连接钱包
   const connectWallet = async () => {
     if (!(window as any).ethereum) {
-      setStatus('未检测到钱包扩展');
+      setStatus('Wallet extension not detected');
       return;
     }
     try {
@@ -94,21 +121,19 @@ const TokenMetadataForm: React.FC = () => {
       const accounts = await provider.send('eth_requestAccounts', []);
       if (accounts && accounts.length > 0) {
         setWalletAddress(ethers.getAddress(accounts[0]));
-        setStatus('钱包已连接');
+        setStatus('Wallet connected');
       } else {
-        setStatus('未获取到账户');
+        setStatus('No account found');
       }
-    } catch (e:any) {
-      setStatus('连接失败: ' + (e.message || e.toString()));
+    } catch (e: any) {
+      setStatus('Connect failed: ' + (e.message || e.toString()));
     } finally {
       setConnecting(false);
     }
   };
 
-  // 发送到后端：后端可两种模式
-  // 1. 直接链上广播 => 返回 { success:true, txHash }
-  // 2. 仅返回待签名交易结构 => 返回 { success:true, tx:{...} }，前端使用钱包签名发送
-  const submitToBackend = async () : Promise<BackendResponse> => {
+  // 发送到后端
+  const submitToBackend = async (): Promise<BackendResponse> => {
     const payload = {
       geoTag,
       weatherTag,
@@ -118,70 +143,53 @@ const TokenMetadataForm: React.FC = () => {
       eventTime,
       fullname,
       ticker,
-      walletAddress // 新增字段
+      walletAddress,
+      fee,
+      tokensPerNativeE18: tokensPerNativeE18 * 10 ** 18, // 转换为 wei 精度
+      nativeLiquidityWei: ethers.parseEther(nativeLiquidityWei).toString() // 转换为 wei
     };
+
+    console.log('Payload to backend:', payload);
+
     const resp = await fetch('http://127.0.0.1:5000/tx_transfer/token_launch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
+
+    if (!resp.ok) {
+      throw new Error(`HTTP error! status: ${resp.status}`);
+    }
+
     return resp.json();
   };
 
   const signAndSendIfNeeded = async (tx: BackendTxPayload) => {
     if (!(window as any).ethereum) {
-      throw new Error('未检测到钱包，无法签名');
+      throw new Error('No wallet detected, cannot sign');
     }
+
     const provider = new ethers.BrowserProvider((window as any).ethereum);
-
-    // 如果后端提供 chainId，尝试切换
-    if (tx.chainId) {
-      const chainHex = '0x' + tx.chainId.toString(16);
-      try {
-        await provider.send('wallet_switchEthereumChain', [{ chainId: chainHex }]);
-      } catch (err: any) {
-        if (err?.code === 4902) {
-          // 未添加到钱包，尝试添加，你可根据实际链信息调整
-            try {
-              await provider.send('wallet_addEthereumChain', [{
-                chainId: chainHex,
-                chainName: 'Local-' + tx.chainId,
-                nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
-                rpcUrls: ['http://127.0.0.1:8545'], // 如需改成你的真实本地 RPC
-                blockExplorerUrls: []
-              }]);
-            } catch (addErr) {
-              console.warn('添加链失败', addErr);
-            }
-        } else {
-          console.warn('切换链失败', err);
-        }
-      }
-    }
-
-    await provider.send('eth_requestAccounts', []);
     const signer = await provider.getSigner();
+
+    // 检查地址匹配
     const currentAddr = (await signer.getAddress()).toLowerCase();
     if (tx.from && tx.from.toLowerCase() !== currentAddr) {
-      throw new Error('后端返回 from 与当前钱包地址不一致');
+      throw new Error(`Address mismatch: backend ${tx.from}, current wallet ${currentAddr}`);
     }
 
-    // 标准化 value
-    const valueHex = tx.value
-      ? (tx.value.startsWith('0x') ? tx.value : ethers.toQuantity(BigInt(tx.value)))
-      : '0x0';
-
+    // 构建交易请求
     const request: any = {
       to: tx.to,
       data: tx.data,
-      value: valueHex
+      value: tx.value || '0x0'
     };
 
-    // gas / gasLimit 映射
+    // gas 设置
     if (tx.gas) request.gasLimit = tx.gas;
     else if (tx.gasLimit) request.gasLimit = tx.gasLimit;
 
-    // 费用模型：如果提供 gasPrice (legacy) 则使用，不再设置 EIP-1559 字段
+    // 费用设置
     if (tx.gasPrice) {
       request.gasPrice = tx.gasPrice;
     } else {
@@ -189,8 +197,11 @@ const TokenMetadataForm: React.FC = () => {
       if (tx.maxPriorityFeePerGas) request.maxPriorityFeePerGas = tx.maxPriorityFeePerGas;
     }
 
-    if (typeof tx.nonce === 'number') request.nonce = tx.nonce; // 可省略让钱包自动估算
-    if (tx.chainId) request.chainId = tx.chainId; // ethers 自动校验
+    // 可选参数
+    if (typeof tx.nonce === 'number') request.nonce = tx.nonce;
+    if (tx.chainId) request.chainId = tx.chainId;
+
+    console.log('发送交易:', request);
 
     const sent = await signer.sendTransaction(request);
     return sent.hash;
@@ -198,429 +209,394 @@ const TokenMetadataForm: React.FC = () => {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    // 如果尚未连接钱包，则先连接，不继续提交
+
+    // 如果没有连接钱包，先连接
     if (!walletAddress) {
       await connectWallet();
       return;
     }
+
     setStatus('');
     setTxHash('');
     setBackendData(null);
 
     const err = validate();
-    if (err) { setStatus('校验失败: ' + err); return; }
+    if (err) {
+      setStatus('校验失败: ' + err);
+      return;
+    }
 
     setSubmitting(true);
-    setStatus('提交后端中...');
+    setStatus('Submitting to backend...');
+
     try {
       const res = await submitToBackend();
       setBackendData(res);
-      const successFlag = (res.success === undefined ? res.ok : res.success) === true;
-      if (!successFlag) {
-        setStatus('后端失败: ' + (res.message || res.error || 'unknown'));
+
+      console.log('后端响应:', res);
+
+      if (!res.ok) {
+        setStatus('Backend failed: ' + (res.error || res.message || 'Unknown error'));
         return;
       }
       if (res.txHash) {
-        setStatus('后端已广播完成');
+        setStatus('Backend already broadcast');
         setTxHash(res.txHash);
         return;
       }
       if (res.tx) {
-        setStatus('收到待签名交易，调用钱包签名...');
+        setStatus('Received tx to sign, invoking wallet...');
         try {
           const hash = await signAndSendIfNeeded(res.tx);
           setTxHash(hash);
-          setStatus('交易已发送，等待确认 (hash 已返回)');
-        } catch (signErr:any) {
-          setStatus('签名/发送失败: ' + (signErr.shortMessage || signErr.message));
+          setStatus('Transaction sent, awaiting confirmation');
+        } catch (signErr: any) {
+          console.error('Sign error:', signErr);
+          setStatus('Sign/Send failed: ' + (signErr.shortMessage || signErr.message || signErr.toString()));
         }
       } else {
-        setStatus('成功但无 tx / txHash，检查后端逻辑');
+        setStatus('Success but no tx data returned');
       }
-    } catch (ex:any) {
-      setStatus('请求错误: ' + (ex.message || ex.toString()));
+    } catch (ex: any) {
+      console.error('请求错误:', ex);
+      setStatus('Request error: ' + (ex.message || ex.toString()));
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      padding: '40px 20px',
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center'
-    }}>
-      <form onSubmit={handleSubmit} style={{
-        maxWidth: 800,
-        width: '100%',
-        background: 'white',
-        borderRadius: '20px',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
-        padding: '40px',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        padding: '40px 20px',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center'
       }}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'20px'}}>
-          <h2 style={{
-            fontSize: '32px',
-            fontWeight: '700',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            margin: 0
-          }}>Event Token Metadata</h2>
-          {/* 原独立连接钱包按钮已移除，逻辑合并到底部主按钮 */}
-        </div>
-
-        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px'}}>
-          <div style={{gridColumn: 'span 1'}}>
-            <label style={{
-              display: 'block',
-              marginBottom: '8px',
-              fontSize: '14px',
-              fontWeight: '600',
-              color: '#4a5568'
-            }}>
-              Token Full Name
-            </label>
-            <input 
-              value={fullname} 
-              onChange={e=>setFullname(e.target.value)} 
-              required
-              placeholder="Enter token full name"
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                border: '2px solid #e2e8f0',
-                borderRadius: '10px',
-                fontSize: '16px',
-                transition: 'all 0.3s ease',
-                outline: 'none',
-                boxSizing: 'border-box'
-              }}
-              onFocus={(e) => e.target.style.borderColor = '#667eea'}
-              onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
-            />
-          </div>
-          
-          <div style={{gridColumn: 'span 1'}}>
-            <label style={{
-              display: 'block',
-              marginBottom: '8px',
-              fontSize: '14px',
-              fontWeight: '600',
-              color: '#4a5568'
-            }}>
-              Token Ticker
-            </label>
-            <input 
-              value={ticker} 
-              onChange={e=>setTicker(e.target.value)} 
-              required
-              placeholder="Enter ticker symbol"
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                border: '2px solid #e2e8f0',
-                borderRadius: '10px',
-                fontSize: '16px',
-                transition: 'all 0.3s ease',
-                outline: 'none',
-                boxSizing: 'border-box'
-              }}
-              onFocus={(e) => e.target.style.borderColor = '#667eea'}
-              onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
-            />
-          </div>
-          
-          <div style={{gridColumn: 'span 1'}}>
-            <label style={{
-              display: 'block',
-              marginBottom: '8px',
-              fontSize: '14px',
-              fontWeight: '600',
-              color: '#4a5568'
-            }}>
-              Geographic Location
-            </label>
-            <input 
-              value={geoTag} 
-              onChange={e=>setGeoTag(e.target.value)} 
-              required
-              placeholder="e.g., New York, USA"
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                border: '2px solid #e2e8f0',
-                borderRadius: '10px',
-                fontSize: '16px',
-                transition: 'all 0.3s ease',
-                outline: 'none',
-                boxSizing: 'border-box'
-              }}
-              onFocus={(e) => e.target.style.borderColor = '#667eea'}
-              onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
-            />
-          </div>
-          
-          <div style={{gridColumn: 'span 1'}}>
-            <label style={{
-              display: 'block',
-              marginBottom: '8px',
-              fontSize: '14px',
-              fontWeight: '600',
-              color: '#4a5568'
-            }}>
-              Weather Condition
-            </label>
-            <input 
-              value={weatherTag} 
-              onChange={e=>setWeatherTag(e.target.value)} 
-              required
-              placeholder="e.g., Sunny, Rainy"
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                border: '2px solid #e2e8f0',
-                borderRadius: '10px',
-                fontSize: '16px',
-                transition: 'all 0.3s ease',
-                outline: 'none',
-                boxSizing: 'border-box'
-              }}
-              onFocus={(e) => e.target.style.borderColor = '#667eea'}
-              onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
-            />
-          </div>
-        </div>
-
-        <div style={{
-          marginTop: '24px',
-          padding: '20px',
-          background: 'linear-gradient(135deg, #f6f8fb 0%, #f0f4f8 100%)',
-          borderRadius: '12px',
-          border: '2px solid #e2e8f0'
+        <form onSubmit={handleSubmit} style={{
+          maxWidth: 900,
+          width: '100%',
+          background: 'white',
+          borderRadius: '20px',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
+          padding: '40px',
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
         }}>
-          <h3 style={{
-            fontSize: '16px',
-            fontWeight: '600',
-            color: '#4a5568',
-            marginBottom: '16px'
-          }}>Event Categories (Select 4)</h3>
-          <div style={{display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px'}}>
-            {Array.from({length:4}).map((_,i)=>(
-              <select 
-                key={i} 
-                value={eventTypes[i]} 
-                onChange={e=>handleEventTypeChange(i,e.target.value)}
-                style={{
-                  padding: '10px 12px',
-                  border: '2px solid #e2e8f0',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  background: 'white',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease',
-                  outline: 'none'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#667eea'}
-                onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
-              >
-                {EVENT_TYPE_OPTIONS.map(opt=> <option key={opt} value={opt}>{opt}</option>)}
-              </select>
-            ))}
+          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
+            <h2 style={{
+              fontSize: '32px',
+              fontWeight: '700',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              margin: 0
+            }}>Event Token Launch</h2>
+
+            {/* 钱包状态显示 */}
+            <div style={{
+              padding: '8px 16px',
+              background: walletAddress ? '#f0fdf4' : '#fef3f2',
+              border: `2px solid ${walletAddress ? '#bbf7d0' : '#fecaca'}`,
+              borderRadius: '8px',
+              fontSize: '14px',
+              fontWeight: '500',
+              color: walletAddress ? '#16a34a' : '#dc2626'
+            }}>
+              {walletAddress ? `Connected: ${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Wallet disconnected'}
+            </div>
           </div>
-        </div>
 
-        <div style={{marginTop: '24px'}}>
-          <label style={{
-            display: 'block',
-            marginBottom: '8px',
-            fontSize: '14px',
-            fontWeight: '600',
-            color: '#4a5568'
-          }}>
-            Event Description
-          </label>
-          <textarea 
-            rows={4} 
-            value={eventDescription} 
-            onChange={e=>setEventDescription(e.target.value)}
-            placeholder="Provide a detailed description of the event..."
-            style={{
-              width: '100%',
-              padding: '12px 16px',
-              border: '2px solid #e2e8f0',
-              borderRadius: '10px',
-              fontSize: '16px',
-              resize: 'vertical',
-              transition: 'all 0.3s ease',
-              outline: 'none',
-              boxSizing: 'border-box',
-              fontFamily: 'inherit'
-            }}
-            onFocus={(e) => e.target.style.borderColor = '#667eea'}
-            onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
-          />
-        </div>
-        
-        <div style={{marginTop: '20px'}}>
-          <label style={{
-            display: 'block',
-            marginBottom: '8px',
-            fontSize: '14px',
-            fontWeight: '600',
-            color: '#4a5568'
-          }}>
-            Supplement Link
-          </label>
-          <input 
-            value={supplementLink} 
-            onChange={e=>setSupplementLink(e.target.value)}
-            placeholder="https://example.com/details"
-            style={{
-              width: '100%',
-              padding: '12px 16px',
-              border: '2px solid #e2e8f0',
-              borderRadius: '10px',
-              fontSize: '16px',
-              transition: 'all 0.3s ease',
-              outline: 'none',
-              boxSizing: 'border-box'
-            }}
-            onFocus={(e) => e.target.style.borderColor = '#667eea'}
-            onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
-          />
-        </div>
-        
-        <div style={{marginTop: '20px'}}>
-          <label style={{
-            display: 'block',
-            marginBottom: '8px',
-            fontSize: '14px',
-            fontWeight: '600',
-            color: '#4a5568'
-          }}>
-            Event Time
-          </label>
-          <input 
-            value={new Date(eventTime * 1000).toLocaleString()} 
-            readOnly
-            style={{
-              width: '100%',
-              padding: '12px 16px',
-              border: '2px solid #e2e8f0',
-              borderRadius: '10px',
-              fontSize: '16px',
-              background: '#f7fafc',
-              color: '#718096',
-              boxSizing: 'border-box'
-            }}
-          />
-        </div>
+          {/* 基础信息网格 */}
+          <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px'}}>
+            <div>
+              <label style={labelStyle}>Token Full Name</label>
+              <input
+                  value={fullname}
+                  onChange={e => setFullname(e.target.value)}
+                  required
+                  placeholder="Enter token full name"
+                  style={inputStyle}
+              />
+            </div>
 
-        <button 
-          type='submit' 
-          disabled={submitting || connecting}
-          style={{
-            marginTop: '32px',
-            width: '100%',
-            padding: '14px 24px',
-            background: (submitting || connecting) ? '#cbd5e0' : (walletAddress ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'linear-gradient(135deg,#6366f1,#8b5cf6)'),
-            color: 'white',
-            border: 'none',
-            borderRadius: '10px',
-            fontSize: '16px',
-            fontWeight: '600',
-            cursor: (submitting || connecting) ? 'not-allowed' : 'pointer',
-            transition: 'all 0.3s ease',
-            boxShadow: (submitting || connecting) ? 'none' : '0 4px 15px rgba(102, 126, 234, 0.4)'
-          }}
-          onMouseEnter={(e) => !(submitting || connecting) && (e.currentTarget.style.transform = 'translateY(-2px)')}
-          onMouseLeave={(e) => !(submitting || connecting) && (e.currentTarget.style.transform = 'translateY(0)')}
-        >
-          {submitting ? 'Submitting...' : (connecting ? '连接中...' : (walletAddress ? 'Submit to Blockchain' : 'Connect Wallet'))}
-        </button>
+            <div>
+              <label style={labelStyle}>Token Ticker</label>
+              <input
+                  value={ticker}
+                  onChange={e => setTicker(e.target.value)}
+                  required
+                  placeholder="Enter ticker symbol"
+                  style={inputStyle}
+              />
+            </div>
 
-        {(status || txHash || backendData) && (
-          <div style={{
-            marginTop: '24px',
-            padding: '20px',
-            background: status.includes('失败') || status.includes('错误') ? '#fef2f2' : '#f0fdf4',
-            borderRadius: '10px',
-            border: `2px solid ${status.includes('失败') || status.includes('错误') ? '#fecaca' : '#bbf7d0'}`
-          }}>
-            {status && (
-              <div style={{
-                fontSize: '14px',
-                color: status.includes('失败') || status.includes('错误') ? '#dc2626' : '#16a34a',
-                fontWeight: '500'
-              }}>
-                Status: {status}
-              </div>
-            )}
-            {txHash && (
-              <div style={{
-                marginTop: '8px',
-                fontSize: '14px',
-                color: '#4a5568'
-              }}>
-                Transaction Hash: <span style={{
-                  fontFamily: 'monospace',
-                  background: '#e2e8f0',
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                  wordBreak: 'break-all'
-                }}>{txHash}</span>
-              </div>
-            )}
-            {backendData && (
-              <pre style={{
-                marginTop: '12px',
-                background: 'white',
-                padding: '12px',
-                borderRadius: '8px',
-                overflow: 'auto',
-                maxHeight: '200px',
-                fontSize: '12px',
-                color: '#4a5568',
-                border: '1px solid #e2e8f0'
-              }}>
+            <div>
+              <label style={labelStyle}>Geographic Location</label>
+              <input
+                  value={geoTag}
+                  onChange={e => setGeoTag(e.target.value)}
+                  required
+                  placeholder="e.g., New York, USA"
+                  style={inputStyle}
+              />
+            </div>
+
+            <div>
+              <label style={labelStyle}>Weather Condition</label>
+              <input
+                  value={weatherTag}
+                  onChange={e => setWeatherTag(e.target.value)}
+                  required
+                  placeholder="e.g., Sunny, Rainy"
+                  style={inputStyle}
+              />
+            </div>
+          </div>
+
+          {/* 合约参数网格 */}
+          <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginTop: '24px'}}>
+            <div>
+              <label style={labelStyle}>Fee (bps)</label>
+              <input
+                  type="number"
+                  value={fee}
+                  onChange={e => setFee(Number(e.target.value))}
+                  required
+                  placeholder="3000 = 0.3%"
+                  style={inputStyle}
+              />
+            </div>
+
+            <div>
+              <label style={labelStyle}>Tokens per ETH</label>
+              <input
+                  type="number"
+                  value={tokensPerNativeE18}
+                  onChange={e => setTokensPerNativeE18(Number(e.target.value))}
+                  required
+                  placeholder="10000"
+                  style={inputStyle}
+              />
+            </div>
+
+            <div>
+              <label style={labelStyle}>Liquidity (ETH)</label>
+              <input
+                  type="number"
+                  step="0.001"
+                  value={nativeLiquidityWei}
+                  onChange={e => setNativeLiquidityWei(e.target.value)}
+                  required
+                  placeholder="0.1"
+                  style={inputStyle}
+              />
+            </div>
+          </div>
+
+          {/* Event Categories */}
+          <div style={sectionStyle}>
+            <h3 style={sectionTitleStyle}>Event Categories (Select 4)</h3>
+            <div style={{display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px'}}>
+              {Array.from({length: 4}).map((_, i) => (
+                  <select
+                      key={i}
+                      value={eventTypes[i]}
+                      onChange={e => handleEventTypeChange(i, e.target.value)}
+                      style={selectStyle}
+                  >
+                    {EVENT_TYPE_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                  </select>
+              ))}
+            </div>
+          </div>
+
+          {/* Event Description */}
+          <div style={{marginTop: '24px'}}>
+            <label style={labelStyle}>Event Description</label>
+            <textarea
+                rows={4}
+                value={eventDescription}
+                onChange={e => setEventDescription(e.target.value)}
+                placeholder="Provide a detailed description of the event..."
+                style={{...inputStyle, fontFamily: 'inherit'}}
+            />
+          </div>
+
+          {/* Supplement Link */}
+          <div style={{marginTop: '20px'}}>
+            <label style={labelStyle}>Supplement Link</label>
+            <input
+                value={supplementLink}
+                onChange={e => setSupplementLink(e.target.value)}
+                placeholder="https://example.com/details"
+                style={inputStyle}
+            />
+          </div>
+
+          {/* Event Time */}
+          <div style={{marginTop: '20px'}}>
+            <label style={labelStyle}>Event Time</label>
+            <input
+                value={new Date(eventTime * 1000).toLocaleString()}
+                readOnly
+                style={{...inputStyle, background: '#f7fafc', color: '#718096'}}
+            />
+          </div>
+
+          {/* 提交按钮 */}
+          <button
+              type='submit'
+              disabled={submitting || connecting}
+              style={buttonStyle(submitting || connecting, !!walletAddress)}
+          >
+            {submitting ? 'Submitting...' :
+                connecting ? 'Connecting...' :
+                    walletAddress ? 'Launch Token' : 'Connect Wallet & Launch'}
+          </button>
+
+          {/* 状态显示 */}
+          {(status || txHash || backendData) && (
+              <div style={statusStyle(status)}>
+                {status && (
+                    <div style={statusTextStyle(status)}>
+                      Status: {status}
+                    </div>
+                )}
+                {txHash && (
+                    <div style={{marginTop: '8px', fontSize: '14px', color: '#4a5568'}}>
+                      Transaction Hash: <span style={hashStyle}>{txHash}</span>
+                    </div>
+                )}
+                {backendData && (
+                    <pre style={debugStyle}>
                 {JSON.stringify(backendData, null, 2)}
               </pre>
-            )}
-          </div>
-        )}
+                )}
+              </div>
+          )}
 
-        <div style={{
-          marginTop: '24px',
-          padding: '16px',
-          background: '#f7fafc',
-          borderRadius: '10px',
-          borderLeft: '4px solid #667eea'
-        }}>
-          <p style={{
-            fontSize: '13px',
-            color: '#4a5568',
-            marginBottom: '8px',
-            lineHeight: '1.6'
-          }}>
-            <strong>Note:</strong> This form collects metadata and submits it to the backend. If the backend returns a transaction structure, it will trigger wallet signing and sending.
-          </p>
-          <p style={{
-            fontSize: '13px',
-            color: '#718096',
-            margin: 0,
-            lineHeight: '1.6'
-          }}>
-            For contracts requiring msg.sender = user address, transactions must be signed and sent from the frontend.
-          </p>
-        </div>
-      </form>
-    </div>
+          {/* 说明 */}
+          <div style={noteStyle}>
+            <p><strong>Note:</strong> This form will create a new Event Token and add liquidity. A wallet signature is required.</p>
+            <p>Ensure the wallet has enough ETH for gas and supplied liquidity.</p>
+          </div>
+        </form>
+      </div>
   );
 };
 
+// 样式常量
+const labelStyle = {
+  display: 'block',
+  marginBottom: '8px',
+  fontSize: '14px',
+  fontWeight: '600',
+  color: '#4a5568'
+};
+
+const inputStyle = {
+  width: '100%',
+  padding: '12px 16px',
+  border: '2px solid #e2e8f0',
+  borderRadius: '10px',
+  fontSize: '16px',
+  transition: 'all 0.3s ease',
+  outline: 'none',
+  boxSizing: 'border-box' as const
+};
+
+const sectionStyle = {
+  marginTop: '24px',
+  padding: '20px',
+  background: 'linear-gradient(135deg, #f6f8fb 0%, #f0f4f8 100%)',
+  borderRadius: '12px',
+  border: '2px solid #e2e8f0'
+};
+
+const sectionTitleStyle = {
+  fontSize: '16px',
+  fontWeight: '600',
+  color: '#4a5568',
+  marginBottom: '16px'
+};
+
+const selectStyle = {
+  padding: '10px 12px',
+  border: '2px solid #e2e8f0',
+  borderRadius: '8px',
+  fontSize: '14px',
+  background: 'white',
+  cursor: 'pointer',
+  transition: 'all 0.3s ease',
+  outline: 'none'
+};
+
+const buttonStyle = (disabled: boolean, walletConnected: boolean) => ({
+  marginTop: '32px',
+  width: '100%',
+  padding: '14px 24px',
+  background: disabled ? '#cbd5e0' :
+      (walletConnected ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'linear-gradient(135deg,#6366f1,#8b5cf6)'),
+  color: 'white',
+  border: 'none',
+  borderRadius: '10px',
+  fontSize: '16px',
+  fontWeight: '600',
+  cursor: disabled ? 'not-allowed' : 'pointer',
+  transition: 'all 0.3s ease',
+  boxShadow: disabled ? 'none' : '0 4px 15px rgba(102, 126, 234, 0.4)'
+});
+
+const statusStyle = (status: string) => {
+  const lower = status.toLowerCase();
+  const isErr = lower.includes('fail') || lower.includes('error');
+  return {
+    marginTop: '24px',
+    padding: '20px',
+    background: isErr ? '#fef2f2' : '#f0fdf4',
+    borderRadius: '10px',
+    border: `2px solid ${isErr ? '#fecaca' : '#bbf7d0'}`
+  };
+};
+
+const statusTextStyle = (status: string) => {
+  const lower = status.toLowerCase();
+  const isErr = lower.includes('fail') || lower.includes('error');
+  return {
+    fontSize: '14px',
+    color: isErr ? '#dc2626' : '#16a34a',
+    fontWeight: '500'
+  };
+};
+
+const hashStyle = {
+  fontFamily: 'monospace',
+  background: '#e2e8f0',
+  padding: '2px 6px',
+  borderRadius: '4px',
+  wordBreak: 'break-all' as const
+};
+
+const debugStyle = {
+  marginTop: '12px',
+  background: 'white',
+  padding: '12px',
+  borderRadius: '8px',
+  overflow: 'auto',
+  maxHeight: '200px',
+  fontSize: '12px',
+  color: '#4a5568',
+  border: '1px solid #e2e8f0'
+};
+
+const noteStyle = {
+  marginTop: '24px',
+  padding: '16px',
+  background: '#f7fafc',
+  borderRadius: '10px',
+  borderLeft: '4px solid #667eea'
+};
+
 export default TokenMetadataForm;
+
