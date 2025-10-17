@@ -7,6 +7,7 @@ import Session from "./components/AgentInteraction/Session";
 
 function App() {
     const [activeTab, setActiveTab] = useState("token-launch");
+    const [selectedTradingPoolId, setSelectedTradingPoolId] = useState<string>("");
 
     const tabs = [
         { id: "token-launch", label: "Token Launch", icon: "🚀" },
@@ -20,9 +21,9 @@ function App() {
             case "token-launch":
                 return <TokenLaunch />;
             case "trading":
-                return <Trading />;
+                return <Trading initialPoolId={selectedTradingPoolId || undefined} />;
             case "monitor":
-                return <EventCoinMonitor />;
+                return <EventCoinMonitor onSelectPool={(pid: string)=>{ setSelectedTradingPoolId(pid); setActiveTab('trading'); window.scrollTo({top:0,behavior:'smooth'}); }} />;
             case "agent":
                 return <Session />;
             default:

@@ -102,7 +102,9 @@ const Session: React.FC = () => {
         </div>
         <div style={settingsColumn}>
           <div style={settingsScrollArea}>
-            <AgentSetting />
+            <div style={{flex:1, overflowY:'auto', height:'100%'}}>
+              <AgentSetting />
+            </div>
           </div>
         </div>
       </div>
@@ -111,23 +113,16 @@ const Session: React.FC = () => {
 };
 
 // Styles
-const rootStyle: React.CSSProperties = {
-  position: 'relative',
-  width: '100%',
-  padding: '40px 20px',
-  background: 'linear-gradient(135deg,#667eea,#764ba2)',
-  boxSizing: 'border-box'
-};
+// 移除未使用 rootStyle
 
 const chatCardStyle: React.CSSProperties = {
-  maxWidth: 860,
-  margin: '0 auto',
   background: '#fff',
   borderRadius: 20,
   boxShadow: '0 20px 50px rgba(0,0,0,0.15)',
   display: 'flex',
   flexDirection: 'column',
-  height: '70vh',
+  height: '100%', // 改为填满父容器
+  width: '100%',
   overflow: 'hidden'
 };
 
@@ -163,7 +158,7 @@ const bubbleWrapperStyle = (role: 'user' | 'agent'): React.CSSProperties => ({
 });
 
 const bubbleStyle = (role: 'user' | 'agent'): React.CSSProperties => ({
-  maxWidth: '70%',
+  maxWidth: '74%',
   background: role === 'user' ? 'linear-gradient(135deg,#667eea,#764ba2)' : '#edf2f7',
   color: role === 'user' ? '#fff' : '#1e293b',
   padding: '12px 16px',
@@ -213,37 +208,42 @@ const sendButtonStyle = (disabled: boolean): React.CSSProperties => ({
   transition: 'all .25s'
 });
 
-// 新增布局样式
+// 布局样式
 const pageShell: React.CSSProperties = {
   width: '100%',
-  minHeight: '100vh',
+  height: '100vh', // 改为固定视口高度保证父级卡片参照
   background: 'linear-gradient(135deg,#667eea,#764ba2)',
-  padding: '32px 24px',
-  boxSizing: 'border-box'
+  padding: '16px',
+  boxSizing: 'border-box',
+  overflow: 'hidden'
 };
 const layoutWrapper: React.CSSProperties = {
-  maxWidth: 1400,
-  margin: '0 auto',
+  width: '100%',
   display: 'flex',
-  gap: 24,
+  gap: 12,
   alignItems: 'stretch',
-  flexWrap: 'wrap'
+  height: '100%' // 统一高度占满 pageShell
 };
 const chatColumn: React.CSSProperties = {
-  flex: '1 1 640px',
-  minWidth: 480,
-  display: 'flex'
+  flex: '4 1 0',
+  minWidth: 0,
+  display: 'flex',
+  height: '100%' // 显式高度
 };
 const settingsColumn: React.CSSProperties = {
-  flex: '0 1 420px',
-  minWidth: 340,
+  flex: '3 1 0',
+  minWidth: 0,
   display: 'flex',
-  flexDirection: 'column'
+  height: '100%' // 显式高度
 };
 const settingsScrollArea: React.CSSProperties = {
   flex: 1,
-  overflowY: 'auto',
-  padding: 0
+  height: '100%',
+  display: 'flex',
+  background:'#fff',
+  borderRadius:20,
+  boxShadow:'0 20px 50px rgba(0,0,0,0.15)',
+  overflow:'hidden'
 };
 
 export default Session;

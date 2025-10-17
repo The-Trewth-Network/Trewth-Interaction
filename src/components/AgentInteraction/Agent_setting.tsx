@@ -36,17 +36,6 @@ const toggleWrapper: React.CSSProperties = {
   marginTop: '12px'
 };
 
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '12px 16px',
-  border: '2px solid #e2e8f0',
-  borderRadius: '10px',
-  fontSize: '16px',
-  transition: 'all 0.3s ease',
-  outline: 'none',
-  boxSizing: 'border-box'
-};
-
 const chipStyle = (active: boolean): React.CSSProperties => ({
   padding: '6px 12px',
   borderRadius: '20px',
@@ -213,8 +202,6 @@ const AgentSetting: React.FC = () => {
     };
   }, [wsEnabled, selectedTags]);
 
-  const canConnect = wsEnabled && selectedTags.length > 0;
-
   const resetSettings = () => {
     setSwapEnabled(false);
     setWsEnabled(false);
@@ -231,11 +218,14 @@ const AgentSetting: React.FC = () => {
     <div style={{
       maxWidth: 900,
       width: '100%',
+      height: '100%', // 让根容器占满外层高度
+      display: 'flex',
+      flexDirection: 'column',
       background: '#fff',
       borderRadius: 20,
       padding: 24,
       boxShadow: '0 10px 30px rgba(0,0,0,0.12)',
-      fontFamily: '-apple-system,BlinkMacSystemFont,\"Segoe UI\",Roboto,sans-serif'
+      fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif'
     }}>
       {/* Prompt Section */}
       <div style={{

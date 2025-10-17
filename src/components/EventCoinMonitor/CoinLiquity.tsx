@@ -16,7 +16,9 @@ interface HeatmapItem {
     };
 }
 
-const CoinLiquity: React.FC = () => {
+interface CoinLiquityProps { onSelectPool?: (poolId:string)=>void }
+
+const CoinLiquity: React.FC<CoinLiquityProps> = ({ onSelectPool }) => {
     const [heatmap, setHeatmap] = useState<HeatmapItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -51,7 +53,8 @@ const CoinLiquity: React.FC = () => {
             poolid: item.poolid,
             ticker: item.tokenmetadata.ticker,
             geoTag: item.tokenmetadata.geoTag,
-            eventTypes: item.tokenmetadata.eventTypes
+            eventTypes: item.tokenmetadata.eventTypes,
+            eventDescription: item.tokenmetadata.eventDescription // 新增描述字段
         }))
     };
 
@@ -210,6 +213,7 @@ const CoinLiquity: React.FC = () => {
                                         key={node.data.poolid}
                                         onMouseEnter={() => setHoveredNode(node.data.poolid)}
                                         onMouseLeave={() => setHoveredNode(null)}
+                                        onClick={() => { console.log('[Heatmap] select pool', node.data.poolid); onSelectPool && onSelectPool(node.data.poolid); }}
                                         style={{ cursor: 'pointer' }}
                                     >
                                         <rect
@@ -315,6 +319,8 @@ const CoinLiquity: React.FC = () => {
                                 {(() => {
                                     const node = nodes.find(n => n.data.poolid === hoveredNode);
                                     if (!node) return null;
+                                    const desc = node.data.eventDescription as string | undefined;
+                                    const truncatedDesc = desc && desc.length > 140 ? desc.slice(0, 140) + '...' : (desc || '-');
                                     return (
                                         <>
                                             <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>
@@ -328,6 +334,9 @@ const CoinLiquity: React.FC = () => {
                                             </div>
                                             <div style={{ fontSize: '14px', color: '#6b7280', marginTop: '4px' }}>
                                                 事件类型: {node.data.eventTypes.join(', ')}
+                                            </div>
+                                            <div style={{ fontSize: '13px', color: '#374151', marginTop: '8px', lineHeight: 1.4 }}>
+                                                描述: {truncatedDesc}
                                             </div>
                                         </>
                                     );
