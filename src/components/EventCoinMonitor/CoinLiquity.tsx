@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { hierarchy, treemap } from "d3-hierarchy";
 import axios from "axios";
 
@@ -23,6 +23,8 @@ const CoinLiquity: React.FC<CoinLiquityProps> = ({ onSelectPool }) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+    const containerRef = useRef<HTMLDivElement | null>(null);
+    const [dims, setDims] = useState({ width: 0, height: 500 });
 
     useEffect(() => {
         axios.get("http://10.18.23.51:3000/swap/heatmap")
@@ -31,18 +33,20 @@ const CoinLiquity: React.FC<CoinLiquityProps> = ({ onSelectPool }) => {
             .finally(() => setLoading(false));
     }, []);
 
-    // 根据容器自适应尺寸
-    const width = typeof window !== 'undefined' ? Math.min(window.innerWidth - 120, 1200) : 1000;
-    const height = typeof window !== 'undefined' ? Math.min(window.innerHeight - 300, 600) : 500;
-
-    const getSolidColorForValue = (value: number) => {
-        if (value >= 0.4) return "#667eea";
-        else if (value >= 0.3) return "#f093fb";
-        else if (value >= 0.2) return "#4facfe";
-        else if (value >= 0.1) return "#43e97b";
-        else if (value >= 0.05) return "#fa709a";
-        else return "#30cfd0";
-    };
+    // 使用 ResizeObserver 动态获取容器实际宽度，保证 treemap 占满父级，无右侧留白
+    useEffect(() => {
+        if (!containerRef.current) return;
+        const el = containerRef.current;
+        const update = () => {
+            const w = el.clientWidth; // 实际内容宽度
+            // 固定高度或可按比例: 保持现有 500 高度，或根据宽度微调
+            setDims(prev => ({ width: w, height: prev.height }));
+        };
+        update();
+        const ro = new ResizeObserver(() => update());
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []);
 
     // Treemap 数据准备
     const treemapData = {
@@ -60,33 +64,41 @@ const CoinLiquity: React.FC<CoinLiquityProps> = ({ onSelectPool }) => {
 
     // Treemap 布局
     let nodes: any[] = [];
-    if (heatmap.length > 0) {
+    if (heatmap.length > 0 && dims.width > 0) {
         const root = hierarchy(treemapData)
             .sum((d: any) => d.value)
             .sort((a: any, b: any) => (b.value as number) - (a.value as number));
         treemap<any>()
-            .size([width, height])
+            .size([dims.width, dims.height])
             .padding(4)
             .paddingInner(3)
             .paddingOuter(6)(root);
         nodes = root.leaves();
     }
 
+    const getSolidColorForValue = (value: number) => {
+        if (value >= 0.4) return "#667eea";
+        else if (value >= 0.3) return "#f093fb";
+        else if (value >= 0.2) return "#4facfe";
+        else if (value >= 0.1) return "#43e97b";
+        else if (value >= 0.05) return "#fa709a";
+        else return "#30cfd0";
+    };
+
     return (
-        <div style={{
+        <div ref={containerRef} style={{
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             padding: '20px',
             borderRadius: '20px',
             boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
-            maxWidth: '100%',
-            overflow: 'auto'
+            width: '100%', // 使用全宽
+            overflow: 'hidden' // 去除水平滚动
         }}>
             <div style={{
                 background: 'rgba(255, 255, 255, 0.95)',
                 borderRadius: '16px',
                 padding: '20px',
-                backdropFilter: 'blur(10px)',
-                overflow: 'auto'
+                backdropFilter: 'blur(10px)'
             }}>
                 <div style={{
                     display: 'flex',
@@ -166,34 +178,25 @@ const CoinLiquity: React.FC<CoinLiquityProps> = ({ onSelectPool }) => {
                 )}
                 
                 {!loading && !error && (
-                    <div style={{
-                        position: 'relative',
-                        borderRadius: '12px',
-                        overflow: 'auto',
-                        boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
-                        maxWidth: '100%'
-                    }}>
-                        <svg 
-                            width={width} 
-                            height={height} 
-                            style={{ 
-                                background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+                    <div style={{ position: 'relative', borderRadius: '12px', width: '100%' }}>
+                        <svg
+                            width="100%"
+                            height={dims.height}
+                            viewBox={`0 0 ${dims.width} ${dims.height}`}
+                            preserveAspectRatio="none" // 拉伸填满
+                            style={{
                                 display: 'block',
-                                minWidth: width,
-                                minHeight: height
+                                background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+                                width: '100%',
+                                height: dims.height
                             }}
-                            viewBox={`0 0 ${width} ${height}`}
-                            preserveAspectRatio="xMidYMid meet"
                         >
                             <defs>
                                 {nodes.map((node) => (
                                     <linearGradient
                                         key={`gradient-${node.data.poolid}`}
                                         id={`gradient-${node.data.poolid}`}
-                                        x1="0%"
-                                        y1="0%"
-                                        x2="100%"
-                                        y2="100%"
+                                        x1="0%" y1="0%" x2="100%" y2="100%"
                                     >
                                         <stop offset="0%" stopColor={getSolidColorForValue(node.data.value)} stopOpacity="0.8" />
                                         <stop offset="100%" stopColor={getSolidColorForValue(node.data.value)} stopOpacity="1" />

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import EventCoinTrading from "./Trading/EventCoinTading";
 import TokenInfo from "./Trading/TokenInfo";
+import TokenPrice from "./Trading/TokenPrice"; // 新增价格折线图
 
 interface TradingProps { initialPoolId?: string; }
 
@@ -14,6 +15,7 @@ const Trading: React.FC<TradingProps> = ({ initialPoolId }) => {
         <EventCoinTrading onPoolSelect={setActivePoolId} initialPoolId={activePoolId || undefined} />
       </div>
       <div style={rightPane}>
+        <TokenPrice poolId={activePoolId} />
         <TokenInfo poolId={activePoolId} />
       </div>
     </div>
@@ -29,6 +31,6 @@ const outerLayout: React.CSSProperties = {
   width: '100%',
 };
 const leftPane: React.CSSProperties = { flex: '0 0 760px', maxWidth: 760 };
-const rightPane: React.CSSProperties = { flex: 1, minWidth: 0 };
+const rightPane: React.CSSProperties = { flex: 1, minWidth: 0, display:'flex', flexDirection:'column', gap:24 };
 
 export default Trading;

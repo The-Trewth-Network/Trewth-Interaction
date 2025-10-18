@@ -68,7 +68,7 @@ const TokenInfo: React.FC<TokenInfoProps> = ({ poolId, apiBase = 'http://10.18.2
           <MetaItem label="天气标签" value={meta.weatherTag} />
           <MetaItem label="合约地址" value={data.tokenaddress} />
           <MetaItem label="发布者地址" value={data.tokenpublisher} />
-          <MetaItem label="部署时间戳" value={data.deploymentinfo.blockTime.toString()} />
+          <MetaItem label="部���时间戳" value={data.deploymentinfo.blockTime.toString()} />
           <MetaItem label="补充链接" value={<a href={meta.supplementLink} target="_blank" rel="noreferrer" style={linkStyle}>访问</a>} />
         </div>
         <div style={tagsWrapperStyle}>
