@@ -42,14 +42,14 @@ const TokenInfo: React.FC<TokenInfoProps> = ({ poolId, apiBase = 'http://10.18.2
     setError('');
     axios.post(`${apiBase}/pool_info/pool_info`, { pool_id: poolId })
       .then(res => { setData(res.data); })
-      .catch(() => { setError('获取数据失败'); setData(null); })
+      .catch(() => { setError('Failed to fetch data'); setData(null); })
       .finally(() => setLoading(false));
   }, [poolId, apiBase]);
 
-  if (!poolId) return <div style={placeholderStyle}>未提供 poolId</div>;
-  if (loading) return <div style={placeholderStyle}>加载中...</div>;
+  if (!poolId) return <div style={placeholderStyle}>poolId not provided</div>;
+  if (loading) return <div style={placeholderStyle}>Loading...</div>;
   if (error) return <div style={errorStyle}>{error}</div>;
-  if (!data) return <div style={placeholderStyle}>无数据</div>;
+  if (!data) return <div style={placeholderStyle}>No data</div>;
 
   const meta = data.tokenmetadata;
 
@@ -58,18 +58,18 @@ const TokenInfo: React.FC<TokenInfoProps> = ({ poolId, apiBase = 'http://10.18.2
       <div style={cardStyle}>
         <div style={headerStyle}>
           <h2 style={titleStyle}>{meta.fullname} ({meta.ticker})</h2>
-          <span style={subtitleStyle}>事件代币详细信息</span>
+          <span style={subtitleStyle}>Event token details</span>
         </div>
         <div style={metaGridStyle}>
-          <MetaItem label="事件简介" value={meta.eventDescription} />
-          <MetaItem label="事件时间" value={meta.eventTime?.toString()} />
-          <MetaItem label="事件类型" value={meta.eventTypes.join(' / ')} />
-          <MetaItem label="地理标签" value={meta.geoTag} />
-          <MetaItem label="天气标签" value={meta.weatherTag} />
-          <MetaItem label="合约地址" value={data.tokenaddress} />
-          <MetaItem label="发布者地址" value={data.tokenpublisher} />
-          <MetaItem label="部���时间戳" value={data.deploymentinfo.blockTime.toString()} />
-          <MetaItem label="补充链接" value={<a href={meta.supplementLink} target="_blank" rel="noreferrer" style={linkStyle}>访问</a>} />
+          <MetaItem label="Event Description" value={meta.eventDescription} />
+          <MetaItem label="Event Time" value={meta.eventTime?.toString()} />
+          <MetaItem label="Event Types" value={meta.eventTypes.join(' / ')} />
+          <MetaItem label="Geo Tag" value={meta.geoTag} />
+          <MetaItem label="Weather Tag" value={meta.weatherTag} />
+          <MetaItem label="Token Address" value={data.tokenaddress} />
+          <MetaItem label="Publisher Address" value={data.tokenpublisher} />
+          <MetaItem label="Deployment Timestamp" value={data.deploymentinfo.blockTime.toString()} />
+          <MetaItem label="Supplement Link" value={<a href={meta.supplementLink} target="_blank" rel="noreferrer" style={linkStyle}>Open</a>} />
         </div>
         <div style={tagsWrapperStyle}>
           {data.tags.map(t => <span key={t} style={tagStyle}>{t}</span>)}
@@ -86,7 +86,7 @@ const MetaItem: React.FC<{label:string; value: React.ReactNode}> = ({label, valu
   </div>
 );
 
-// 样式参考 EventCoinTading.tsx 并做精简
+// Styles reference EventCoinTading.tsx simplified
 const wrapperStyle: React.CSSProperties = { padding:'24px', maxWidth:'900px', margin:'0 auto' };
 const cardStyle: React.CSSProperties = { background:'#fff', borderRadius:16, padding:28, boxShadow:'0 4px 6px rgba(0,0,0,0.1)', border:'1px solid #e5e7eb' };
 const headerStyle: React.CSSProperties = { marginBottom:24, textAlign:'center' };

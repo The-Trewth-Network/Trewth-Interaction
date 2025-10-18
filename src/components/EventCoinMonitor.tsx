@@ -7,7 +7,7 @@ interface EventCoinMonitorProps { onSelectPool?: (poolId:string)=>void }
 const EventCoinMonitor: React.FC<EventCoinMonitorProps> = ({ onSelectPool }) => {
     return (
         <div>
-            <h2>事件币池监控</h2>
+            <h2>Event Coin Pool Monitor</h2>
             <CoinLiquity onSelectPool={onSelectPool} />
             <NewlyListToken onSelectPool={onSelectPool} />
         </div>

@@ -29,17 +29,17 @@ const CoinLiquity: React.FC<CoinLiquityProps> = ({ onSelectPool }) => {
     useEffect(() => {
         axios.get("http://10.18.23.51:3000/swap/heatmap")
             .then(res => setHeatmap(res.data))
-            .catch(() => setError("获取热力图数据失败"))
+            .catch(() => setError("Failed to fetch heatmap data"))
             .finally(() => setLoading(false));
     }, []);
 
-    // 使用 ResizeObserver 动态获取容器实际宽度，保证 treemap 占满父级，无右侧留白
+    // Use ResizeObserver to get dynamic container width so treemap fills parent
     useEffect(() => {
         if (!containerRef.current) return;
         const el = containerRef.current;
         const update = () => {
-            const w = el.clientWidth; // 实际内容宽度
-            // 固定高度或可按比例: 保持现有 500 高度，或根据宽度微调
+            const w = el.clientWidth; // actual content width
+            // Keep fixed height 500 or adjust if needed
             setDims(prev => ({ width: w, height: prev.height }));
         };
         update();
@@ -48,7 +48,7 @@ const CoinLiquity: React.FC<CoinLiquityProps> = ({ onSelectPool }) => {
         return () => ro.disconnect();
     }, []);
 
-    // Treemap 数据准备
+    // Treemap data preparation
     const treemapData = {
         name: "root",
         children: heatmap.map(item => ({
@@ -58,11 +58,11 @@ const CoinLiquity: React.FC<CoinLiquityProps> = ({ onSelectPool }) => {
             ticker: item.tokenmetadata.ticker,
             geoTag: item.tokenmetadata.geoTag,
             eventTypes: item.tokenmetadata.eventTypes,
-            eventDescription: item.tokenmetadata.eventDescription // 新增描述字段
+            eventDescription: item.tokenmetadata.eventDescription // description field
         }))
     };
 
-    // Treemap 布局
+    // Treemap layout
     let nodes: any[] = [];
     if (heatmap.length > 0 && dims.width > 0) {
         const root = hierarchy(treemapData)
@@ -91,8 +91,8 @@ const CoinLiquity: React.FC<CoinLiquityProps> = ({ onSelectPool }) => {
             padding: '20px',
             borderRadius: '20px',
             boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
-            width: '100%', // 使用全宽
-            overflow: 'hidden' // 去除水平滚动
+            width: '100%', // full width
+            overflow: 'hidden' // remove horizontal scroll
         }}>
             <div style={{
                 background: 'rgba(255, 255, 255, 0.95)',
@@ -114,7 +114,7 @@ const CoinLiquity: React.FC<CoinLiquityProps> = ({ onSelectPool }) => {
                         WebkitTextFillColor: 'transparent',
                         margin: 0
                     }}>
-                        流动性池热力图
+                        Liquidity Pool Heatmap
                     </h2>
                     <div style={{
                         display: 'flex',
@@ -122,7 +122,7 @@ const CoinLiquity: React.FC<CoinLiquityProps> = ({ onSelectPool }) => {
                         alignItems: 'center',
                         flexWrap: 'wrap'
                     }}>
-                        <span style={{ fontSize: '12px', color: '#6b7280' }}>占比分布:</span>
+                        <span style={{ fontSize: '12px', color: '#6b7280' }}>Share Distribution:</span>
                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                             {[
                                 { label: '>40%', color: '#667eea' },
@@ -183,7 +183,7 @@ const CoinLiquity: React.FC<CoinLiquityProps> = ({ onSelectPool }) => {
                             width="100%"
                             height={dims.height}
                             viewBox={`0 0 ${dims.width} ${dims.height}`}
-                            preserveAspectRatio="none" // 拉伸填满
+                            preserveAspectRatio="none" // stretch to fill
                             style={{
                                 display: 'block',
                                 background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
@@ -330,16 +330,16 @@ const CoinLiquity: React.FC<CoinLiquityProps> = ({ onSelectPool }) => {
                                                 {node.data.name} ({node.data.ticker})
                                             </div>
                                             <div style={{ fontSize: '14px', color: '#6b7280' }}>
-                                                流动性占比: {(node.data.value * 100).toFixed(2)}%
+                                                Liquidity Share: {(node.data.value * 100).toFixed(2)}%
                                             </div>
                                             <div style={{ fontSize: '14px', color: '#6b7280' }}>
-                                                地区: {node.data.geoTag}
+                                                Region: {node.data.geoTag}
                                             </div>
                                             <div style={{ fontSize: '14px', color: '#6b7280', marginTop: '4px' }}>
-                                                事件类型: {node.data.eventTypes.join(', ')}
+                                                Event Types: {node.data.eventTypes.join(', ')}
                                             </div>
                                             <div style={{ fontSize: '13px', color: '#374151', marginTop: '8px', lineHeight: 1.4 }}>
-                                                描述: {truncatedDesc}
+                                                Description: {truncatedDesc}
                                             </div>
                                         </>
                                     );

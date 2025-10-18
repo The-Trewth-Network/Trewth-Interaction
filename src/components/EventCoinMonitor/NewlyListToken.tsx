@@ -24,25 +24,25 @@ const NewlyListToken: React.FC<NewlyListTokenProps> = ({ onSelectPool, limit = 1
     setLoading(true);
     axios.get(`${apiBase}/swap/get_pools`)
       .then(res => { setPools(res.data || []); setError(''); })
-      .catch(()=>{ setPools([]); setError('获取最新池列表失败'); })
+      .catch(()=>{ setPools([]); setError('Failed to fetch latest pool list'); })
       .finally(()=> setLoading(false));
   },[apiBase]);
 
   const latestPools = useMemo(()=>{
     return [...pools]
-      .sort((a,b)=> b.createdattime - a.createdattime) // 时间倒序（接口已倒序，重新保证）
+      .sort((a,b)=> b.createdattime - a.createdattime) // Sort by created time desc
       .slice(0, limit);
   },[pools, limit]);
 
-  if (loading) return <div style={cardStyle}>加载最新池子...</div>;
+  if (loading) return <div style={cardStyle}>Loading latest pools...</div>;
   if (error) return <div style={{...cardStyle, color:'#dc2626'}}>{error}</div>;
-  if (!latestPools.length) return <div style={cardStyle}>暂无新池</div>;
+  if (!latestPools.length) return <div style={cardStyle}>No new pools</div>;
 
   return (
     <div style={wrapperStyle}>
       <div style={headerStyle}>
-        <h3 style={titleStyle}>最新事件代币排行</h3>
-        <span style={subtitleStyle}>按部署时间排序，点击进入交易</span>
+        <h3 style={titleStyle}>Newest Event Tokens Ranking</h3>
+        <span style={subtitleStyle}>Sorted by deployment time. Click to trade.</span>
       </div>
       <div style={listStyle}>
         {latestPools.map((p, idx) => {
@@ -61,11 +61,11 @@ const NewlyListToken: React.FC<NewlyListTokenProps> = ({ onSelectPool, limit = 1
                   <span style={fullnameStyle}>{p.tokenmetadata.fullname}</span>
                 </div>
                 <div style={metaRowStyle}>
-                  <span style={metaLabelStyle}>费率</span><span style={metaValueStyle}>{feePct}</span>
+                  <span style={metaLabelStyle}>Fee</span><span style={metaValueStyle}>{feePct}</span>
                   <span style={dotStyle}>•</span>
-                  <span style={metaLabelStyle}>区块</span><span style={metaValueStyle}>{p.createdatblock}</span>
+                  <span style={metaLabelStyle}>Block</span><span style={metaValueStyle}>{p.createdatblock}</span>
                   <span style={dotStyle}>•</span>
-                  <span style={metaLabelStyle}>时间戳</span><span style={metaValueStyle}>{timeStr}</span>
+                  <span style={metaLabelStyle}>Timestamp</span><span style={metaValueStyle}>{timeStr}</span>
                 </div>
                 <div style={descStyle}>{p.tokenmetadata.eventDescription || '-'}</div>
               </div>
@@ -78,7 +78,7 @@ const NewlyListToken: React.FC<NewlyListTokenProps> = ({ onSelectPool, limit = 1
   );
 };
 
-// 样式
+// Styles
 const wrapperStyle: React.CSSProperties = { marginTop:32, background:'white', borderRadius:16, padding:'20px 24px', boxShadow:'0 6px 20px rgba(0,0,0,0.08)', border:'1px solid #e5e7eb' };
 const headerStyle: React.CSSProperties = { marginBottom:16 };
 const titleStyle: React.CSSProperties = { margin:0, fontSize:20, fontWeight:600, background:'linear-gradient(135deg,#667eea,#764ba2)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' };
@@ -99,4 +99,3 @@ const actionColStyle: React.CSSProperties = { alignSelf:'center', fontSize:18, c
 const cardStyle: React.CSSProperties = { background:'white', borderRadius:16, padding:'20px', boxShadow:'0 4px 12px rgba(0,0,0,0.07)', border:'1px solid #e5e7eb', marginTop:32, textAlign:'center', fontSize:14, color:'#374151' };
 
 export default NewlyListToken;
-

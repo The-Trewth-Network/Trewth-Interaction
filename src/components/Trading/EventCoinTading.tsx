@@ -33,7 +33,7 @@ const EventCoinTrading: React.FC<EventCoinTradingProps> = ({ onPoolSelect, initi
       });
   }, []);
 
-  // 若 initialPoolId 改变可同步（可选）
+  // Sync if initialPoolId changes (optional)
   useEffect(() => { if (initialPoolId) setSelectedPoolId(initialPoolId); }, [initialPoolId]);
 
   useEffect(() => { if (onPoolSelect) onPoolSelect(selectedPoolId); }, [selectedPoolId, onPoolSelect]);
@@ -67,39 +67,39 @@ const EventCoinTrading: React.FC<EventCoinTradingProps> = ({ onPoolSelect, initi
     } else { setEstimatedOutput(""); }
   }, [selectedPool, amount, direction]);
 
-  const inputPlaceholder = direction === 'N2T' ? '输入原生币数量' : '输入事件代币数量';
+  const inputPlaceholder = direction === 'N2T' ? 'Enter native amount' : 'Enter event token amount';
   const outputUnit = direction === 'N2T' ? selectedPool?.tokenmetadata.ticker : 'NATIVE';
   const inputUnit = direction === 'N2T' ? 'NATIVE' : selectedPool?.tokenmetadata.ticker;
 
   return (
     <div style={containerStyle}>
       <div style={headerStyle}>
-        <h2 style={titleStyle}>事件代币交易</h2>
-        <span style={subtitleStyle}>离线估价交易 (不发起链上模拟)</span>
+        <h2 style={titleStyle}>Event Token Trading</h2>
+        <span style={subtitleStyle}>Offline estimation (no on-chain simulation)</span>
       </div>
       <div style={cardStyle}>
         <div style={sectionStyle}>
-          <label style={labelStyle}>交易方向</label>
+          <label style={labelStyle}>Trade Direction</label>
           <div style={directionContainerStyle}>
             <button
               style={direction === 'N2T' ? activeDirectionButtonStyle : directionButtonStyle}
               onClick={() => setDirection('N2T')}
-            ><span style={directionIconStyle}>💱</span>原生币 → 事件代币</button>
+            ><span style={directionIconStyle}>💱</span>Native → Event Token</button>
             <button
               style={direction === 'T2N' ? activeDirectionButtonStyle : directionButtonStyle}
               onClick={() => setDirection('T2N')}
-            ><span style={directionIconStyle}>🔄</span>事件代币 → 原生币</button>
+            ><span style={directionIconStyle}>🔄</span>Event Token → Native</button>
           </div>
         </div>
         <div style={sectionStyle}>
-          <label style={labelStyle}>选择代币池</label>
-          {isLoading ? <div style={loadingStyle}>加载中...</div> : (
+          <label style={labelStyle}>Select Pool</label>
+          {isLoading ? <div style={loadingStyle}>Loading...</div> : (
             <select
               style={selectStyle}
               value={selectedPoolId}
               onChange={e => setSelectedPoolId(e.target.value)}
             >
-              <option value="">请选择代币池</option>
+              <option value="">Select a pool</option>
               {pools.map(pool => (
                 <option key={pool.poolid} value={pool.poolid}>{pool.tokenmetadata.fullname} ({pool.tokenmetadata.ticker})</option>
               ))}
@@ -113,14 +113,14 @@ const EventCoinTrading: React.FC<EventCoinTradingProps> = ({ onPoolSelect, initi
               <span style={tokenNameStyle}>{selectedPool.tokenmetadata.fullname}</span>
             </div>
             <div style={poolDetailsStyle}>
-              <div style={poolDetailItemStyle}><span style={poolDetailLabelStyle}>费率</span><span style={poolDetailValueStyle}>{(selectedPool.poolinit.fee / 10000).toFixed(2)}%</span></div>
-              <div style={poolDetailItemStyle}><span style={poolDetailLabelStyle}>Tick 间距</span><span style={poolDetailValueStyle}>{selectedPool.poolinit.tickSpacing}</span></div>
-              <div style={poolDetailItemStyle}><span style={poolDetailLabelStyle}>当前 Tick</span><span style={poolDetailValueStyle}>{selectedPool.poolinit.tick}</span></div>
+              <div style={poolDetailItemStyle}><span style={poolDetailLabelStyle}>Fee</span><span style={poolDetailValueStyle}>{(selectedPool.poolinit.fee / 10000).toFixed(2)}%</span></div>
+              <div style={poolDetailItemStyle}><span style={poolDetailLabelStyle}>Tick Spacing</span><span style={poolDetailValueStyle}>{selectedPool.poolinit.tickSpacing}</span></div>
+              <div style={poolDetailItemStyle}><span style={poolDetailLabelStyle}>Current Tick</span><span style={poolDetailValueStyle}>{selectedPool.poolinit.tick}</span></div>
             </div>
           </div>
         )}
         <div style={sectionStyle}>
-          <label style={labelStyle}>输入数量</label>
+          <label style={labelStyle}>Input Amount</label>
           <div style={inputGroupStyle}>
             <input
               type="number"
@@ -135,21 +135,21 @@ const EventCoinTrading: React.FC<EventCoinTradingProps> = ({ onPoolSelect, initi
         </div>
         {estimatedOutput && (
           <div style={outputCardStyle}>
-            <div style={outputLabelStyle}>预估输出</div>
+            <div style={outputLabelStyle}>Estimated Output</div>
             <div style={outputValueStyle}>{estimatedOutput} <span style={outputUnitStyle}>{outputUnit}</span></div>
           </div>
         )}
         <button
           style={!selectedPoolId || !amount ? disabledButtonStyle : buttonStyle}
           disabled={!selectedPoolId || !amount}
-        >执行交易</button>
-        <div style={disclaimerStyle}>⚠️ 该估价未考虑滑点与实际流动性影响，仅基于当前价格和费率计算</div>
+        >Execute Trade</button>
+        <div style={disclaimerStyle}>⚠️ Estimation ignores slippage and actual liquidity impact; based only on current price and fee</div>
       </div>
     </div>
   );
 };
 
-// 样式定义（保留原有）
+// Style definitions (keep original)
 const containerStyle: React.CSSProperties = { padding: '24px', maxWidth: '800px', margin: '0 auto' };
 const headerStyle: React.CSSProperties = { textAlign: 'center', marginBottom: '32px' };
 const titleStyle: React.CSSProperties = { margin: '0', fontSize: '28px', fontWeight: '600', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', marginBottom: '8px' };

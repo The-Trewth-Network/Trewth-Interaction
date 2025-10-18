@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import EventCoinTrading from "./Trading/EventCoinTading";
 import TokenInfo from "./Trading/TokenInfo";
-import TokenPrice from "./Trading/TokenPrice"; // 新增价格折线图
+import TokenPrice from "./Trading/TokenPrice"; // Added price line chart
 
 interface TradingProps { initialPoolId?: string; }
 

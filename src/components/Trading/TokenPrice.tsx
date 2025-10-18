@@ -32,7 +32,7 @@ const TokenPrice: React.FC<TokenPriceProps> = ({ poolId, apiBase = 'http://10.18
         mapped.sort((a,b)=> a.ts - b.ts);
         setData(mapped);
       })
-      .catch(()=> { setData([]); setError('价格数据获取失败'); })
+      .catch(()=> { setData([]); setError('Failed to fetch price data'); })
       .finally(()=> setLoading(false));
   }, [poolId, apiBase]);
 
@@ -86,31 +86,31 @@ const TokenPrice: React.FC<TokenPriceProps> = ({ poolId, apiBase = 'http://10.18
     <div ref={containerRef} style={outerWrapperStyle}>
       <div style={innerCardStyle}>
         <div style={headerRowStyle}>
-          <h3 style={titleStyle}>价格走势</h3>
+          <h3 style={titleStyle}>Price Trend</h3>
           <div style={metaInlineStyle}>
             {stats && (
               <>
-                <span style={metaItemStyle}>最新: <strong>{stats.last.toPrecision(6)}</strong> TRTH</span>
+                <span style={metaItemStyle}>Latest: <strong>{stats.last.toPrecision(6)}</strong> TRTH</span>
                 <span style={dotStyle}>•</span>
-                <span style={metaItemStyle}>最小: {stats.min.toPrecision(6)}</span>
+                <span style={metaItemStyle}>Min: {stats.min.toPrecision(6)}</span>
                 <span style={dotStyle}>•</span>
-                <span style={metaItemStyle}>最大: {stats.max.toPrecision(6)}</span>
+                <span style={metaItemStyle}>Max: {stats.max.toPrecision(6)}</span>
                 <span style={dotStyle}>•</span>
-                <span style={{...metaItemStyle, color: stats.changePct>=0? '#10b981':'#ef4444'}}>变化: {stats.changePct.toFixed(2)}%</span>
+                <span style={{...metaItemStyle, color: stats.changePct>=0? '#10b981':'#ef4444'}}>Change: {stats.changePct.toFixed(2)}%</span>
               </>
             )}
           </div>
         </div>
-        {loading && <div style={loadingStyle}>加载价格数据...</div>}
+        {loading && <div style={loadingStyle}>Loading price data...</div>}
         {!loading && error && <div style={errorStyle}>{error}</div>}
-        {!loading && !error && !data.length && <div style={emptyStyle}>暂无价格数据</div>}
+        {!loading && !error && !data.length && <div style={emptyStyle}>No price data</div>}
         {!loading && !error && data.length > 0 && (
           <div style={{ position:'relative' }}>
             <svg width={dims.width} height={dims.height} style={{ display:'block' }} onMouseLeave={()=> setHoverIdx(null)}
               onMouseMove={e=>{
                 const bounds = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
                 const mx = e.clientX - bounds.left;
-                // 找最近点
+                // find nearest point
                 let nearestIdx = 0; let minDist = Infinity;
                 circles.forEach((c,i)=>{ const dx = c.x - mx; const dist = Math.abs(dx); if (dist < minDist){ minDist = dist; nearestIdx = i; } });
                 setHoverIdx(nearestIdx);
@@ -123,15 +123,15 @@ const TokenPrice: React.FC<TokenPriceProps> = ({ poolId, apiBase = 'http://10.18
               </defs>
               <rect x={0} y={0} width={dims.width} height={dims.height} fill="url(#bgGradient)" fillOpacity={0} />
               <path d={pathD} stroke="url(#lineGradient)" strokeWidth={3} fill="none" strokeLinecap="round" />
-              {/* 面积填充 */}
+              {/* area fill */}
               <path d={pathD + ` L ${padding + (dims.width - padding*2)} ${dims.height - padding} L ${padding} ${dims.height - padding} Z`} fill="url(#lineGradient)" fillOpacity={0.15} />
               {circles.map((c,i)=>(
                 <circle key={i} cx={c.x} cy={c.y} r={hoverIdx===i?6:4} fill={hoverIdx===i? '#764ba2':'#667eea'} opacity={hoverIdx===i?1:0.7} />
               ))}
-              {/* X 轴与 Y 轴 */}
+              {/* X & Y axes */}
               <line x1={padding} y1={dims.height - padding} x2={dims.width - padding} y2={dims.height - padding} stroke="#cbd5e1" strokeWidth={1} />
               <line x1={padding} y1={padding} x2={padding} y2={dims.height - padding} stroke="#cbd5e1" strokeWidth={1} />
-              {/* 刻度 */}
+              {/* ticks */}
               {(() => {
                 const ticks = 5;
                 const minT = Math.min(...data.map(d=>d.ts));
@@ -155,8 +155,8 @@ const TokenPrice: React.FC<TokenPriceProps> = ({ poolId, apiBase = 'http://10.18
             </svg>
             {hoverPoint && (
               <div style={{ ...tooltipStyle, left: hoverPoint.x + 10, top: hoverPoint.y + 10 }}>
-                <div style={tooltipRowStyle}>价格: <strong>{hoverPoint.d.price}</strong> TRTH</div>
-                <div style={tooltipRowStyle}>时间: {formatTsFull(hoverPoint.d.ts)}</div>
+                <div style={tooltipRowStyle}>Price: <strong>{hoverPoint.d.price}</strong> TRTH</div>
+                <div style={tooltipRowStyle}>Time: {formatTsFull(hoverPoint.d.ts)}</div>
               </div>
             )}
           </div>
@@ -167,18 +167,19 @@ const TokenPrice: React.FC<TokenPriceProps> = ({ poolId, apiBase = 'http://10.18
 };
 
 function formatTs(ts:number) {
-  // 假定为秒级
+  // assume timestamp is in seconds
   const d = new Date(ts * 1000);
   const h = String(d.getHours()).padStart(2,'0');
   const m = String(d.getMinutes()).padStart(2,'0');
   return `${h}:${m}`;
 }
 function formatTsFull(ts:number) {
+  // full datetime formatting (assumes seconds)
   const d = new Date(ts * 1000);
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
 }
 
-// 样式（参考 CoinLiquity 视觉）
+// styles (reference CoinLiquity visuals)
 const outerWrapperStyle: React.CSSProperties = { marginTop:24, background:'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', padding:20, borderRadius:20, boxShadow:'0 20px 60px rgba(0,0,0,0.15)', width:'100%', overflow:'hidden' };
 const innerCardStyle: React.CSSProperties = { background:'rgba(255,255,255,0.95)', borderRadius:16, padding:20, backdropFilter:'blur(10px)' };
 const headerRowStyle: React.CSSProperties = { display:'flex', flexDirection:'column', gap:10, marginBottom:12 };
