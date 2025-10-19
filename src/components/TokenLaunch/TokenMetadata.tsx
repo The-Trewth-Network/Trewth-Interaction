@@ -30,10 +30,13 @@ const EVENT_TYPE_OPTIONS = [
   'Prediction',
   'RWA',
   'Layer1',
-  'DeFi',
-  'Sports',
-  'Macro',
-  'Meme'
+  'ETHShanghai',
+  'HashKey Chain',
+  'Tokenization',
+  'PANews',
+  'Ethereum Ecosystem',
+  'Hackathon',
+  'Sponsors',
 ];
 
 const TokenMetadataForm: React.FC = () => {

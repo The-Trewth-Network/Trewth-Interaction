@@ -3,16 +3,16 @@ import EventCoinTrading from "./Trading/EventCoinTading";
 import TokenInfo from "./Trading/TokenInfo";
 import TokenPrice from "./Trading/TokenPrice"; // Added price line chart
 
-interface TradingProps { initialPoolId?: string; }
+interface TradingProps { initialPoolId?: string; onAskAI?: (msg:string)=>void }
 
-const Trading: React.FC<TradingProps> = ({ initialPoolId }) => {
+const Trading: React.FC<TradingProps> = ({ initialPoolId, onAskAI }) => {
   const [activePoolId, setActivePoolId] = useState<string>(initialPoolId || "");
   useEffect(()=>{ if (initialPoolId) setActivePoolId(initialPoolId); }, [initialPoolId]);
 
   return (
     <div style={outerLayout}>
       <div style={leftPane}>
-        <EventCoinTrading onPoolSelect={setActivePoolId} initialPoolId={activePoolId || undefined} />
+        <EventCoinTrading onPoolSelect={setActivePoolId} initialPoolId={activePoolId || undefined} onAskAI={onAskAI} />
       </div>
       <div style={rightPane}>
         <TokenPrice poolId={activePoolId} />

@@ -1,15 +1,20 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
+interface AgentSettingProps { balance?: number; setBalance?: (v:number)=>void; onDemoFeedStart?: (messages:string[])=>void; onDemoFeedStop?: ()=>void }
+
 // 与 TokenMetadata 中的 EVENT_TYPE_OPTIONS 保持一致
 const EVENT_TYPE_OPTIONS = [
   'Crypto Related',
   'Prediction',
   'RWA',
   'Layer1',
-  'DeFi',
-  'Sports',
-  'Macro',
-  'Meme'
+  'ETHShanghai',
+  'HashKey Chain',
+  'Tokenization',
+  'PANews',
+  'Ethereum Ecosystem',
+  'Hackathon',
+  'Sponsors'
 ];
 
 // 样式常量（复用 TokenMetadata 风格）
@@ -128,17 +133,30 @@ const sectionTitleStyle: React.CSSProperties = {
   marginBottom: '16px'
 };
 
-const AgentSetting: React.FC = () => {
+// WebSocket 演示消息移到组件外，避免重复创建导致 useEffect 依赖警告
+const DEMO_FEED_MESSAGES = [
+  "这个代币的中文内容是：我们很高兴邀请到 @ezklxyz 的优秀开发者 @henlojseam 加入，成为 #ETHShanghai 2025 黑客松的导师之一！\n\n他精通 Rust、Solidity、OCaml、JavaScript、C++ 等多种技术。如果大家在这些领域遇到问题，相信他会非常乐意提供指导～\n\nETHShanghai 2025 黑客松\n2025 年 10 月 18 日 – 21 日\n中国·上海\n\n发布于英语\n事件的天气标签为：晴\n发布者的地理标签为：上海\n事件标签为：ETHShanghai\nHackathon\nEthereum Ecosystem\nSponsors。\n\n你需要我帮你进一步分析这个代币吗？",
+  "这个代币的中文内容是：Lumiterra的主网上线进度与Monad完美同步——两者预计将同时启动。\n\n▰▰▰▰▰▰\n\nLumiterra成立于2023年，是一支实力雄厚的团队，曾赢得ETHShanghai 2023黑客松，展现了强大的技术深度。\n\n与典型的区块链游戏不同，Lumiterra以其创新性地融合AI技术而脱颖而出。它使用机器学习算法，将玩家行为——例如耕种路线、战斗策略和交易偏好——转化为自主的链上AI智能体。\n\n这些智能体在一个持续的“感知-思考-行动-学习”循环中运作。\n\n这种模式可能代表了区块链游戏的未来方向。\n有了AI的参与，游戏玩法变得更加引人入胜和不可预测，从而提高了玩家的沉浸感和留存率。\n\n对于创作者和玩家来说，加入@LumiterraGame或许也是一个赚取代币奖励，同时为这个新兴生态系统做出贡献的好机会。\n\n发布于英语\n事件的天气标签为：雨\n发布者的地理标签为：新加坡\n事件标签为：ETHShanghai\nLayer1\nPrediction\nCrypto Related。\n\n你需要我帮你进一步分析这个代币吗？",
+  "这个代币的中文内容是：据说Vitalik Buterin即将作为ETHShanghai活动的嘉宾到访中国大陆。\n\n我很好奇这是不是真的😃\n\n\n\n发布于俄语\n事件的天气标签为：晴\n发布者的地理标签为：纽约市\n事件标签为：Crypto Related\nPrediction\nEthereum Ecosystem\nETHShanghai。\n\n你需要我帮你进一步分析这个代币吗？",
+  "这个代币的中文内容是：金秋十月，ETHShanghai 2025即将于2025年10月18日至22日在上海隆重举行。整场活动以为期五天的黑客松和峰会为核心，集结亚太区最活跃的开发者和研究者，将创意从代码带到用户实践。\n\n发布于中文\n事件的天气标签为：晴\n发布者的地理标签为：上海\n事件标签为：ETHShanghai\nEthereum Ecosystem\nRWA\nHackathon。\n\n你需要我帮你进一步分析这个代币吗？"
+];
+
+const AgentSetting: React.FC<AgentSettingProps> = ({ balance: externalBalance, setBalance: externalSetBalance, onDemoFeedStart, onDemoFeedStop }) => {
   // swap 自动交易 demo
   const [swapEnabled, setSwapEnabled] = useState(false);
   const [showSwapTip, setShowSwapTip] = useState(false);
 
-  // 托管钱包 demo (替换原私钥逻辑)
+  // 托管钱包 demo
   const randomAddress = () => '0x' + Array.from({length:40}, () => Math.floor(Math.random()*16).toString(16)).join('');
   const [custodyAddress] = useState<string>(() => randomAddress());
-  const demoBalance = '100 TRTH';
+  // 若外部提供 balance 使用外部，否则内部维持一份（保持兼容）
+  const [internalBalance, setInternalBalance] = useState<number>(100);
+  const effectiveBalance = externalBalance !== undefined ? externalBalance : internalBalance;
+  const demoBalance = effectiveBalance.toFixed(4) + ' TRTH';
   const [depositLoading, setDepositLoading] = useState(false);
   const [withdrawLoading, setWithdrawLoading] = useState(false);
+
+  useEffect(()=>{ if (externalBalance !== undefined) { /* 同步时不做额外操作 */ } }, [externalBalance]);
 
   // websocket & tags
   const [wsEnabled, setWsEnabled] = useState(false);
@@ -148,8 +166,9 @@ const AgentSetting: React.FC = () => {
   const [lastMessage, setLastMessage] = useState('');
 
   // Prompt 状态
-  const [userPrompt, setUserPrompt] = useState('');
-  const [promptLocked, setPromptLocked] = useState(false);
+  const DEFAULT_SESSION_PROMPT = '请将这些Event Coin的信息翻译成中文';
+  const [userPrompt, setUserPrompt] = useState(DEFAULT_SESSION_PROMPT);
+  const [promptLocked, setPromptLocked] = useState(true);
   // 新增: Auto Swap 限额 demo 状态
   const [maxTradeAmount, setMaxTradeAmount] = useState<string>('1'); // 单笔最大
   const [dailyMaxTradeAmount, setDailyMaxTradeAmount] = useState<string>('10'); // 单日最大
@@ -202,6 +221,18 @@ const AgentSetting: React.FC = () => {
     };
   }, [wsEnabled, selectedTags]);
 
+  // WebSocket 开关与 Tags Feed Demo Message Output
+  useEffect(() => {
+    if (wsEnabled) {
+      if (selectedTags.length > 0) {
+        onDemoFeedStart && onDemoFeedStart(DEMO_FEED_MESSAGES);
+      }
+    } else {
+      onDemoFeedStop && onDemoFeedStop();
+    }
+    // 依赖加入回调，避免 ESLint 警告
+  }, [wsEnabled, selectedTags, onDemoFeedStart, onDemoFeedStop]);
+
   const resetSettings = () => {
     setSwapEnabled(false);
     setWsEnabled(false);
@@ -240,7 +271,7 @@ const AgentSetting: React.FC = () => {
           <div style={{display:'flex',gap:12,alignItems:'center'}}>
             <input
               style={{flex:1,padding:'12px 14px',border:'2px solid #e2e8f0',borderRadius:10,fontSize:14,outline:'none'}}
-              placeholder="Enter instruction / system prompt for the agent..."
+              placeholder="请将这些Event Coin的信息翻译成中文"
               value={userPrompt}
               onChange={e=>setUserPrompt(e.target.value)}
               maxLength={500}
@@ -514,4 +545,3 @@ const AgentSetting: React.FC = () => {
 };
 
 export default AgentSetting;
-

@@ -8,12 +8,13 @@ import Session from "./components/AgentInteraction/Session";
 function App() {
     const [activeTab, setActiveTab] = useState("token-launch");
     const [selectedTradingPoolId, setSelectedTradingPoolId] = useState<string>("");
+    const [askAIMessage, setAskAIMessage] = useState<string>("");
 
     const tabs = [
         { id: "token-launch", label: "Token Launch", icon: "🚀" },
         { id: "trading", label: "Trading", icon: "💱" },
         { id: "monitor", label: "Event Monitor", icon: "📊" },
-        { id: "agent", label: "AI Agent", icon: "🤖" }
+        { id: "agent", label: "AI Agent (DEMO)", icon: "🤖" }
     ];
 
     const renderContent = () => {
@@ -21,11 +22,11 @@ function App() {
             case "token-launch":
                 return <TokenLaunch />;
             case "trading":
-                return <Trading initialPoolId={selectedTradingPoolId || undefined} />;
+                return <Trading initialPoolId={selectedTradingPoolId || undefined} onAskAI={(msg:string)=>{ setAskAIMessage(msg); setActiveTab('agent'); }} />;
             case "monitor":
                 return <EventCoinMonitor onSelectPool={(pid: string)=>{ setSelectedTradingPoolId(pid); setActiveTab('trading'); window.scrollTo({top:0,behavior:'smooth'}); }} />;
             case "agent":
-                return <Session />;
+                return <Session injectedAgentMessage={askAIMessage} onMessageConsumed={()=> setAskAIMessage("")} />;
             default:
                 return <TokenLaunch />;
         }

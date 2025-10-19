@@ -11,9 +11,10 @@ type Direction = 'N2T' | 'T2N';
 interface EventCoinTradingProps {
   onPoolSelect?: (poolId: string) => void;
   initialPoolId?: string;
+  onAskAI?: (message: string) => void; // 新增回调
 }
 
-const EventCoinTrading: React.FC<EventCoinTradingProps> = ({ onPoolSelect, initialPoolId }) => {
+const EventCoinTrading: React.FC<EventCoinTradingProps> = ({ onPoolSelect, initialPoolId, onAskAI }) => {
   const [pools, setPools] = useState<Pool[]>([]);
   const [selectedPoolId, setSelectedPoolId] = useState<string>(initialPoolId || "");
   const [amount, setAmount] = useState<string>("");
@@ -117,6 +118,12 @@ const EventCoinTrading: React.FC<EventCoinTradingProps> = ({ onPoolSelect, initi
               <div style={poolDetailItemStyle}><span style={poolDetailLabelStyle}>Tick Spacing</span><span style={poolDetailValueStyle}>{selectedPool.poolinit.tickSpacing}</span></div>
               <div style={poolDetailItemStyle}><span style={poolDetailLabelStyle}>Current Tick</span><span style={poolDetailValueStyle}>{selectedPool.poolinit.tick}</span></div>
             </div>
+            <div style={{marginTop:12, display:'flex', justifyContent:'flex-end'}}>
+              <button
+                style={askAIButtonStyle}
+                onClick={()=> onAskAI && onAskAI("这个代币的中文内容是：据说Vitalik Buterin即将作为ETHShanghai活动的嘉宾到访中国大陆。\n我很好奇这是不是真的😃\n\n发布于俄罗斯\n事件的天气标签为：晴\n发布者的地理标签为：纽约市\n事件标签为：Crypto Related\nETHShanghai\nPrediction\nEthereum Ecosystem。\n\n你需要我帮你进一步分析这个代币吗？")}
+              >Ask AI</button>
+            </div>
           </div>
         )}
         <div style={sectionStyle}>
@@ -181,5 +188,6 @@ const outputUnitStyle: React.CSSProperties = { fontSize: '16px', fontWeight: '50
 const buttonStyle: React.CSSProperties = { width: '100%', padding: '14px 24px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', fontSize: '16px', fontWeight: '600', cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s', marginBottom: '16px' };
 const disabledButtonStyle: React.CSSProperties = { ...buttonStyle, background: '#e5e7eb', color: '#9ca3af', cursor: 'not-allowed' };
 const disclaimerStyle: React.CSSProperties = { fontSize: '12px', color: '#6b7280', textAlign: 'center', padding: '12px', background: '#fef3c7', borderRadius: '8px', border: '1px solid #fde68a' };
+const askAIButtonStyle: React.CSSProperties = { padding:'8px 16px', background:'linear-gradient(135deg,#6366f1,#8b5cf6)', color:'#fff', border:'none', borderRadius:10, fontSize:13, fontWeight:600, cursor:'pointer', boxShadow:'0 4px 10px rgba(99,102,241,0.3)', transition:'opacity .2s' };
 
 export default EventCoinTrading;
