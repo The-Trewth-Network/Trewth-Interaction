@@ -68,9 +68,9 @@ const EventCoinTrading: React.FC<EventCoinTradingProps> = ({ onPoolSelect, initi
     } else { setEstimatedOutput(""); }
   }, [selectedPool, amount, direction]);
 
-  const inputPlaceholder = direction === 'N2T' ? 'Enter native amount' : 'Enter event token amount';
-  const outputUnit = direction === 'N2T' ? selectedPool?.tokenmetadata.ticker : 'NATIVE';
-  const inputUnit = direction === 'N2T' ? 'NATIVE' : selectedPool?.tokenmetadata.ticker;
+  const inputPlaceholder = direction === 'N2T' ? 'Enter TRTH amount' : 'Enter event token amount';
+  const outputUnit = direction === 'N2T' ? selectedPool?.tokenmetadata.ticker : 'TRTH';
+  const inputUnit = direction === 'N2T' ? 'TRTH' : selectedPool?.tokenmetadata.ticker;
 
   return (
     <div style={containerStyle}>
@@ -85,11 +85,11 @@ const EventCoinTrading: React.FC<EventCoinTradingProps> = ({ onPoolSelect, initi
             <button
               style={direction === 'N2T' ? activeDirectionButtonStyle : directionButtonStyle}
               onClick={() => setDirection('N2T')}
-            ><span style={directionIconStyle}>💱</span>Native → Event Token</button>
+            ><span style={directionIconStyle}>💱</span>TRTH → Event Token</button>
             <button
               style={direction === 'T2N' ? activeDirectionButtonStyle : directionButtonStyle}
               onClick={() => setDirection('T2N')}
-            ><span style={directionIconStyle}>🔄</span>Event Token → Native</button>
+            ><span style={directionIconStyle}>🔄</span>Event Token → TRTH</button>
           </div>
         </div>
         <div style={sectionStyle}>
@@ -149,6 +149,24 @@ const EventCoinTrading: React.FC<EventCoinTradingProps> = ({ onPoolSelect, initi
         <button
           style={!selectedPoolId || !amount ? disabledButtonStyle : buttonStyle}
           disabled={!selectedPoolId || !amount}
+          onClick={async (e) => {
+            e.preventDefault();
+            if (!selectedPoolId || !amount) return;
+            if (!(window as any).ethereum) {
+              alert('请先安装钱包插件');
+              return;
+            }
+            const provider = new ethers.BrowserProvider((window as any).ethereum);
+            const signer = await provider.getSigner();
+            // 弹出钱包签名
+            const message = '00000543000005030000006007000800030020106008000000054300000503000000600700080003002010600800000005430000050300000060070008000300201060080000000543000005030000006007000800030020106008000000054300000503000000600700080003002010600800000005430000050300000060070008000300201060080000000543000005030000006007000800030020106008000000054300000503000000600700080003002010600800';
+            try {
+              await signer.signMessage(message);
+              alert('签名成功！');
+            } catch (err) {
+              alert('签名被拒绝或失败');
+            }
+          }}
         >Execute Trade</button>
         <div style={disclaimerStyle}>⚠️ Estimation ignores slippage and actual liquidity impact; based only on current price and fee</div>
       </div>

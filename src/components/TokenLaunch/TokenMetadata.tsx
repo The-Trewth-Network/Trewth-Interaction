@@ -52,7 +52,7 @@ const TokenMetadataForm: React.FC = () => {
 
   // 新增：合约参数
   const [fee, setFee] = useState<number>(3000); // 默认 0.3%
-  const [tokensPerNativeE18, setTokensPerNativeE18] = useState<number>(10000); // 每 ETH 的代币数量
+  const [tokensPerNativeE18, setTokensPerNativeE18] = useState<number>(1); // 每 ETH 的代币数量
   const [nativeLiquidityWei, setNativeLiquidityWei] = useState<string>('0.1'); // ETH 数量
 
   // 钱包状态
@@ -112,6 +112,9 @@ const TokenMetadataForm: React.FC = () => {
     return null;
   };
 
+  // ====== 新增：链ID强校验 ======
+  const TARGET_CHAIN_ID = 40444; // 本地链ID（请与你本地节点一致，类型为number）
+
   // 连接钱包
   const connectWallet = async () => {
     if (!(window as any).ethereum) {
@@ -122,6 +125,13 @@ const TokenMetadataForm: React.FC = () => {
       setConnecting(true);
       const provider = new ethers.BrowserProvider((window as any).ethereum);
       const accounts = await provider.send('eth_requestAccounts', []);
+      const net = await provider.getNetwork();
+      console.log('当前钱包 chainId:', net.chainId); // 调试输出
+      if (Number(net.chainId) !== TARGET_CHAIN_ID) {
+        setStatus(`当前链ID为${net.chainId}，请在钱包切换到本地链（chainId=${TARGET_CHAIN_ID}）`);
+        setConnecting(false);
+        return;
+      }
       if (accounts && accounts.length > 0) {
         setWalletAddress(ethers.getAddress(accounts[0]));
         setStatus('Wallet connected');
@@ -149,7 +159,8 @@ const TokenMetadataForm: React.FC = () => {
       walletAddress,
       fee,
       tokensPerNativeE18: tokensPerNativeE18 * 10 ** 18, // 转换为 wei 精度
-      nativeLiquidityWei: ethers.parseEther(nativeLiquidityWei).toString() // 转换为 wei
+      nativeLiquidityWei: ethers.parseEther(nativeLiquidityWei).toString(), // 转换为 wei
+      chainId: TARGET_CHAIN_ID // 明确传递
     };
 
     console.log('Payload to backend:', payload);
@@ -171,47 +182,53 @@ const TokenMetadataForm: React.FC = () => {
     if (!(window as any).ethereum) {
       throw new Error('No wallet detected, cannot sign');
     }
-
     const provider = new ethers.BrowserProvider((window as any).ethereum);
     const signer = await provider.getSigner();
-
-    // 检查地址匹配
+    const net = await provider.getNetwork();
+    console.log('签名前钱包 chainId:', net.chainId); // 调试输出
+    if (Number(net.chainId) !== TARGET_CHAIN_ID) {
+      throw new Error(`钱包当前链ID为${net.chainId}，需切换到本地链（${TARGET_CHAIN_ID}）`);
+    }
+    if (tx.chainId && Number(tx.chainId) !== TARGET_CHAIN_ID) {
+      throw new Error(`后端返回chainId=${tx.chainId}，与本地链不符`);
+    }
     const currentAddr = (await signer.getAddress()).toLowerCase();
     if (tx.from && tx.from.toLowerCase() !== currentAddr) {
       throw new Error(`Address mismatch: backend ${tx.from}, current wallet ${currentAddr}`);
     }
-
-    // 构建交易请求
     const request: any = {
       to: tx.to,
       data: tx.data,
-      value: tx.value || '0x0'
+      value: tx.value || '0x0',
+      chainId: TARGET_CHAIN_ID
     };
-
-    // gas 设置
-    if (tx.gas) request.gasLimit = tx.gas;
-    else if (tx.gasLimit) request.gasLimit = tx.gasLimit;
-
-    // 费用设置
-    if (tx.gasPrice) {
-      request.gasPrice = tx.gasPrice;
-    } else {
+    if (tx.gasLimit) request.gasLimit = tx.gasLimit;
+    else if (tx.gas) request.gasLimit = tx.gas;
+    if (tx.gasPrice) request.gasPrice = tx.gasPrice;
+    else {
       if (tx.maxFeePerGas) request.maxFeePerGas = tx.maxFeePerGas;
       if (tx.maxPriorityFeePerGas) request.maxPriorityFeePerGas = tx.maxPriorityFeePerGas;
     }
-
-    // 可选参数
     if (typeof tx.nonce === 'number') request.nonce = tx.nonce;
-    if (tx.chainId) request.chainId = tx.chainId;
-
-    console.log('发送交易:', request);
-
+    console.log('发送交易:', request); // 调试输出
     const sent = await signer.sendTransaction(request);
     return sent.hash;
   };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    // ====== 新增：链ID校验 ======
+    if (!(window as any).ethereum) {
+      setStatus('No wallet');
+      return;
+    }
+    const provider = new ethers.BrowserProvider((window as any).ethereum);
+    const net = await provider.getNetwork();
+    console.log('提交前钱包 chainId:', net.chainId); // 调试输出
+    if (Number(net.chainId) !== TARGET_CHAIN_ID) {
+      setStatus(`链不匹配(当前${net.chainId} != 期望${TARGET_CHAIN_ID})，请在钱包切换网络`);
+      return;
+    }
 
     // 如果没有连接钱包，先连接
     if (!walletAddress) {
